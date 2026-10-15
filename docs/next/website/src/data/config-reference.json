@@ -1095,6 +1095,42 @@
           "type": "color",
           "default": "\"cyan\"",
           "description": "Accent color for highlights, borders, and navigation UI. Accepts hex (#89b4fa), named colors (cyan, blue), or RGB (rgb(137,180,250))."
+        },
+        {
+          "key": "ui.accounts.enabled",
+          "type": "boolean",
+          "default": "false",
+          "description": "Show the client-local accounts section between Spaces and Agents in the expanded desktop sidebar. It lists credential slots reported by an external account manager such as cswap."
+        },
+        {
+          "key": "ui.accounts.title",
+          "type": "string",
+          "default": "\"accounts\"",
+          "description": "Title of the accounts section."
+        },
+        {
+          "key": "ui.accounts.list_command",
+          "type": "string",
+          "default": "\"cswap list --json\"",
+          "description": "Shell command that prints the account list as cswap-style JSON (`activeAccountNumber` plus `accounts[]` with `number`, `email`, `alias`, `usage.fiveHour.pct`, `usage.sevenDay.pct`). Runs on the client machine."
+        },
+        {
+          "key": "ui.accounts.switch_command",
+          "type": "string",
+          "default": "\"cswap switch {number}\"",
+          "description": "Shell command run when an account row is double-clicked or switched from its context menu. `{number}`, `{email}` and `{alias}` are replaced with the chosen account's values; the list refreshes afterwards."
+        },
+        {
+          "key": "ui.accounts.interval_seconds",
+          "type": "integer",
+          "default": "60",
+          "description": "Seconds between automatic account list refreshes. Valid values are 1 through 31536000."
+        },
+        {
+          "key": "ui.accounts.timeout_seconds",
+          "type": "integer",
+          "default": "20",
+          "description": "Seconds before a list or switch command is killed. Valid values are 1 through 3600."
         }
       ]
     },

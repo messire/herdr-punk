@@ -22,17 +22,30 @@ impl ClientShellState {
     }
 
     fn set_sidebar_section_from_row(&mut self, row: u16, outcome: &mut ClientShellInput) {
-        let divider = self.hits.sidebar_divider;
-        if divider.height == 0 {
+        let region = if self.hits.sidebar_split_region.height > 0 {
+            self.hits.sidebar_split_region
+        } else {
+            self.hits.sidebar_divider
+        };
+        if region.height == 0 {
             return;
         }
-        let ratio = row.saturating_sub(divider.y) as f32 / divider.height as f32;
+        let row = row.saturating_sub(self.hits.sidebar_split_gap);
+        let ratio = row.saturating_sub(region.y) as f32 / region.height as f32;
         let ratio = ratio.clamp(0.1, 0.9);
         if (self.sidebar_section_split - ratio).abs() > f32::EPSILON {
             self.sidebar_section_split = ratio;
             self.sidebar_section_split_manual = true;
             outcome.repaint = true;
         }
+    }
+
+    pub(super) fn account_index_at(&self, point: (u16, u16)) -> Option<usize> {
+        self.hits
+            .accounts
+            .iter()
+            .find(|(rect, _)| super::contains(*rect, point))
+            .map(|(_, index)| *index)
     }
 
     fn pane_scrollbar_offset(
@@ -1835,6 +1848,14 @@ impl ClientShellState {
                 if !self.config.mouse_capture {
                     return;
                 }
+                let account_index = (!self.sidebar_collapsed)
+                    .then(|| self.account_index_at(point))
+                    .flatten();
+                if let Some(index) = account_index {
+                    self.open_account_context_menu(index, mouse.column, mouse.row);
+                    outcome.repaint = true;
+                    return;
+                }
                 let workspace_id = (!self.sidebar_collapsed)
                     .then(|| self.active_endpoint_workspace_at(point))
                     .flatten();
@@ -1909,6 +1930,23 @@ impl ClientShellState {
                     .min(self.hits.agent_max_scroll);
                 if next != self.agent_scroll {
                     self.agent_scroll = next;
+                    outcome.repaint = true;
+                }
+            }
+            MouseEventKind::ScrollUp if super::contains(self.hits.account_body, point) => {
+                let next = self.account_scroll.saturating_sub(1);
+                if next != self.account_scroll {
+                    self.account_scroll = next;
+                    outcome.repaint = true;
+                }
+            }
+            MouseEventKind::ScrollDown if super::contains(self.hits.account_body, point) => {
+                let next = self
+                    .account_scroll
+                    .saturating_add(1)
+                    .min(self.hits.account_max_scroll);
+                if next != self.account_scroll {
+                    self.account_scroll = next;
                     outcome.repaint = true;
                 }
             }
@@ -2020,6 +2058,33 @@ impl ClientShellState {
                             }
                         }
                     }
+                    return;
+                }
+                let section = self
+                    .hits
+                    .section_headers
+                    .iter()
+                    .find(|(rect, _)| super::contains(*rect, point))
+                    .map(|(_, section)| *section);
+                if let Some(section) = section {
+                    self.toggle_section(section);
+                    outcome.repaint = true;
+                    outcome.resize = true;
+                    self.persist_chrome_preferences(outcome);
+                    return;
+                }
+                if let Some(index) = self.account_index_at(point) {
+                    let now = std::time::Instant::now();
+                    let double_click = self.last_account_click.is_some_and(|(last, last_index)| {
+                        last_index == index
+                            && now.duration_since(last) <= std::time::Duration::from_millis(350)
+                    });
+                    self.last_account_click = Some((now, index));
+                    if double_click {
+                        self.last_account_click = None;
+                        self.request_account_switch(index);
+                    }
+                    outcome.repaint = true;
                     return;
                 }
                 if super::contains(self.hits.agent_sort_toggle, point) {

@@ -48,6 +48,11 @@ impl ClientShellState {
             })
             .collect::<Vec<_>>();
         remote_collapsed_groups.sort_by(|left, right| left.profile_id.cmp(&right.profile_id));
+        let collapsed_sections = SidebarSection::ALL
+            .into_iter()
+            .filter(|section| self.collapsed_sections.contains(section))
+            .map(|section| section.key().to_string())
+            .collect::<Vec<_>>();
         let preferences = preferences::ClientChromePreferences {
             sidebar_width: self.sidebar_width_manual.then_some(self.sidebar_width),
             sidebar_section_split: self
@@ -61,6 +66,7 @@ impl ClientShellState {
                 .then_some(self.config.agent_panel_sort),
             collapsed_groups,
             remote_collapsed_groups,
+            collapsed_sections,
         };
         if let Err(error) = preferences::store(path, preferences) {
             self.set_endpoint_error(error);
@@ -89,6 +95,7 @@ impl ClientShellState {
                 if self.agent_panel_sort_manual {
                     self.config.agent_panel_sort = agent_panel_sort;
                 }
+                self.reconfigure_accounts();
                 self.set_local_config_diagnostic(self.config.local_config_diagnostic(&diagnostics));
                 if let Some(snapshot) = self.snapshot.as_deref() {
                     let profile = snapshot.server_keybindings_toml.clone();
@@ -123,6 +130,7 @@ impl ClientShellConfig {
             hide_tab_bar_when_single_tab: config.ui.hide_tab_bar_when_single_tab,
             spaces: config.ui.sidebar.spaces.clone(),
             agents: config.ui.sidebar.agents.clone(),
+            accounts: config.ui.accounts.clone(),
             agent_panel_sort: config.ui.agent_panel_sort,
             status_indicators: config.ui.status_indicators,
             sound_enabled: config.ui.sound.enabled,
@@ -341,6 +349,7 @@ impl ClientShellConfig {
             } else {
                 let ui = &config.ui;
                 diagnostics.extend(ui.sound.diagnostics());
+                diagnostics.extend(crate::config::accounts_diagnostics(&ui.accounts));
                 self.sidebar_width = ui.sidebar_width;
                 self.sidebar_min_width = ui.sidebar_min_width;
                 self.sidebar_max_width = ui.sidebar_max_width;
@@ -350,6 +359,7 @@ impl ClientShellConfig {
                 self.hide_tab_bar_when_single_tab = ui.hide_tab_bar_when_single_tab;
                 self.spaces = ui.sidebar.spaces.clone();
                 self.agents = ui.sidebar.agents.clone();
+                self.accounts = ui.accounts.clone();
                 self.agent_panel_sort = ui.agent_panel_sort;
                 self.status_indicators = ui.status_indicators;
                 self.sound_enabled = ui.sound.enabled;

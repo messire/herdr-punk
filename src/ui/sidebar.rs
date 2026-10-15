@@ -27,7 +27,7 @@ pub(crate) struct AgentPanelEntry {
     pub tokens: std::collections::HashMap<String, String>,
 }
 
-fn sidebar_section_heights(total_height: u16, split_ratio: f32) -> (u16, u16) {
+pub(crate) fn sidebar_section_heights(total_height: u16, split_ratio: f32) -> (u16, u16) {
     if total_height == 0 {
         return (0, 0);
     }

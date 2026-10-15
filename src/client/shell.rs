@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
+mod accounts;
 mod actions;
 mod agent_sidebar;
 mod aggregate_navigation;
@@ -39,6 +40,9 @@ mod worktrees;
 use text_editor::TextEditor;
 use word_selection::ClientWordSelection;
 
+pub(crate) use accounts::{
+    spawn_poller as spawn_accounts_poller, AccountsPollResult, AccountsRequest,
+};
 pub(in crate::client::shell) use render::sidebar;
 pub(crate) use state::*;
 #[cfg(test)]

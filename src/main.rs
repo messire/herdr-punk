@@ -365,6 +365,17 @@ const DEFAULT_CONFIG: &str = r##"# herdr configuration
 # row_gap = 0
 # rows = [["state_icon", "workspace"], ["branch", "git_status"]]
 
+# Client-local accounts section between Spaces and Agents, fed by an external
+# account manager such as cswap. Double-click a row (or use its context menu)
+# to run switch_command; {number}, {email}, and {alias} are substituted.
+# [ui.accounts]
+# enabled = false
+# title = "accounts"
+# list_command = "cswap list --json"
+# switch_command = "cswap switch {number}"
+# interval_seconds = 60
+# timeout_seconds = 20
+
 # Background notification popup delivery
 [ui.toast]
 # off = disable pop-up notifications

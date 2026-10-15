@@ -23,6 +23,7 @@ pub(crate) struct ClientShellConfig {
     pub(super) hide_tab_bar_when_single_tab: bool,
     pub(super) spaces: SpacesSidebarConfig,
     pub(super) agents: crate::config::AgentsSidebarConfig,
+    pub(super) accounts: crate::config::AccountsConfig,
     pub(super) agent_panel_sort: crate::config::AgentPanelSortConfig,
     pub(super) status_indicators: crate::config::StatusIndicatorStyle,
     pub(super) sound_enabled: bool,
@@ -100,6 +101,17 @@ pub(super) struct ShellHitMap {
     pub(super) agent_scroll_metrics: Option<crate::pane::ScrollMetrics>,
     pub(super) agent_max_scroll: usize,
     pub(super) agent_sort_toggle: Rect,
+    /// Clickable section titles (spaces / accounts / agents) that fold a section.
+    pub(super) section_headers: Vec<(Rect, SidebarSection)>,
+    /// Account rows of the client-local accounts section, by index into the account list.
+    pub(super) accounts: Vec<(Rect, usize)>,
+    pub(super) account_body: Rect,
+    pub(super) account_max_scroll: usize,
+    /// Rows shared by the spaces and agents sections (the accounts section excluded), used to
+    /// turn a drag row back into a split ratio.
+    pub(super) sidebar_split_region: Rect,
+    /// Rows the accounts section occupies between the two split sections.
+    pub(super) sidebar_split_gap: u16,
     pub(super) sidebar_divider: Rect,
     pub(super) sidebar_section_divider: Rect,
     pub(super) sidebar_toggle: Rect,
@@ -237,6 +249,34 @@ pub(super) struct WorkspaceHit {
     pub(super) workspace_id: String,
     pub(super) indented: bool,
     pub(super) group_toggle: Option<(Rect, String)>,
+}
+
+/// The three foldable sections of the expanded desktop sidebar.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) enum SidebarSection {
+    Spaces,
+    Accounts,
+    Agents,
+}
+
+impl SidebarSection {
+    pub(super) const ALL: [SidebarSection; 3] = [
+        SidebarSection::Spaces,
+        SidebarSection::Accounts,
+        SidebarSection::Agents,
+    ];
+
+    pub(super) fn key(self) -> &'static str {
+        match self {
+            SidebarSection::Spaces => "spaces",
+            SidebarSection::Accounts => "accounts",
+            SidebarSection::Agents => "agents",
+        }
+    }
+
+    pub(super) fn from_key(key: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|section| section.key() == key)
+    }
 }
 
 #[derive(Debug)]
@@ -525,6 +565,8 @@ pub(super) enum ClientContextMenuAction {
     Zoom,
     ToggleRightClickPassthrough,
     ClosePane,
+    SwitchAccount,
+    RefreshAccounts,
 }
 
 #[derive(Debug)]
@@ -547,6 +589,10 @@ pub(super) enum ClientContextMenuTarget {
         source_pane_id: Option<String>,
         has_manual_label: bool,
         right_click_passthrough: bool,
+    },
+    Account {
+        number: u64,
+        active: bool,
     },
 }
 
@@ -882,6 +928,12 @@ pub(crate) struct ClientShellState {
     pub(super) tab_press: Option<ClientTabPress>,
     pub(super) collapsed_groups: HashSet<String>,
     pub(super) remote_collapsed_groups: HashMap<ClientEndpointId, HashSet<String>>,
+    /// Folded sidebar sections; persisted with the other chrome preferences.
+    pub(super) collapsed_sections: HashSet<SidebarSection>,
+    pub(super) accounts: super::accounts::ClientAccountsState,
+    pub(super) accounts_control: Option<std::sync::mpsc::Sender<super::accounts::AccountsRequest>>,
+    pub(super) account_scroll: usize,
+    pub(super) last_account_click: Option<(std::time::Instant, usize)>,
     pub(super) workspace_scroll: usize,
     pub(super) agent_scroll: usize,
     pub(super) pending_agent_reveal: Option<(ClientEndpointId, String)>,
@@ -1056,6 +1108,15 @@ impl ClientShellState {
             tab_press: None,
             collapsed_groups: preferences.collapsed_groups.into_iter().collect(),
             remote_collapsed_groups,
+            collapsed_sections: preferences
+                .collapsed_sections
+                .iter()
+                .filter_map(|key| SidebarSection::from_key(key))
+                .collect(),
+            accounts: Default::default(),
+            accounts_control: None,
+            account_scroll: 0,
+            last_account_click: None,
             workspace_scroll: 0,
             agent_scroll: 0,
             pending_agent_reveal: None,

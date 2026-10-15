@@ -4,9 +4,9 @@ use crossterm::event::KeyModifiers;
 use serde::{de, Deserialize, Deserializer, Serialize};
 
 use super::{
-    ActionKeybinds, BindingConfig, CommandKeybindConfig, IndexedKeybind, Keybinds, SidebarConfig,
-    SoundConfig, TabBarRightEntryConfig, ThemeConfig, DEFAULT_MOBILE_WIDTH_THRESHOLD,
-    DEFAULT_MOUSE_SCROLL_LINES, DEFAULT_SCROLLBACK_LIMIT_BYTES,
+    accounts::AccountsConfig, ActionKeybinds, BindingConfig, CommandKeybindConfig, IndexedKeybind,
+    Keybinds, SidebarConfig, SoundConfig, TabBarRightEntryConfig, ThemeConfig,
+    DEFAULT_MOBILE_WIDTH_THRESHOLD, DEFAULT_MOUSE_SCROLL_LINES, DEFAULT_SCROLLBACK_LIMIT_BYTES,
 };
 
 pub const MAX_TOAST_DELAY_SECONDS: u64 = 3600;
@@ -1000,6 +1000,8 @@ pub struct UiConfig {
     pub status_indicators: StatusIndicatorStyle,
     /// Expanded sidebar row composition.
     pub sidebar: SidebarConfig,
+    /// Client-local accounts section (cswap) between Spaces and Agents.
+    pub accounts: AccountsConfig,
     /// Accent color for highlights, borders, and navigation UI.
     /// Accepts hex (#89b4fa), named colors (cyan, blue), or RGB (rgb(137,180,250)).
     pub accent: String,
@@ -1227,6 +1229,7 @@ impl Default for UiConfig {
             _legacy_agent_panel_scope: None,
             status_indicators: StatusIndicatorStyle::Dots,
             sidebar: SidebarConfig::default(),
+            accounts: AccountsConfig::default(),
             accent: "cyan".into(),
             toast: ToastConfig::default(),
             sound: SoundConfig::default(),

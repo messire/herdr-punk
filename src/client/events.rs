@@ -25,6 +25,8 @@ pub(super) enum ClientLoopEvent {
     },
     EndpointSupervisor(endpoint::EndpointSupervisorEvent),
     EndpointCatalog(Result<Vec<endpoint::SavedSshEndpoint>, String>),
+    /// The client-local accounts poller finished a list or switch.
+    AccountsRefreshed(shell::AccountsPollResult),
     HostPower(crate::platform::HostPowerEvent),
     ActivateEndpoint {
         endpoint_id: endpoint::ClientEndpointId,

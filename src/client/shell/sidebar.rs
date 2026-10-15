@@ -211,10 +211,13 @@ pub(crate) fn render_sidebar(
     } else {
         Rect::new(area.right().saturating_sub(1), area.y, 1, area.height)
     };
-    let (workspace_area, detail_area) =
-        crate::ui::expanded_sidebar_sections(area, state.sidebar_section_split);
-    hits.sidebar_section_divider =
-        crate::ui::sidebar_section_divider_rect(area, state.sidebar_section_split);
+    let sections = SidebarSectionLayout::compute(area, config, state);
+    let workspace_area = sections.spaces;
+    let accounts_area = sections.accounts;
+    let detail_area = sections.agents;
+    hits.sidebar_split_region = sections.split_region;
+    hits.sidebar_split_gap = sections.accounts.height;
+    hits.sidebar_section_divider = sections.section_divider;
     put_text(
         buffer,
         workspace_area.x,
@@ -225,8 +228,26 @@ pub(crate) fn render_sidebar(
             .fg(palette.overlay0)
             .add_modifier(Modifier::BOLD),
     );
+    render_section_fold_marker(
+        buffer,
+        workspace_area,
+        workspace_area.y,
+        display_width(" spaces"),
+        sections.spaces_collapsed,
+        palette,
+    );
+    if config.mouse_capture && workspace_area.height > 0 {
+        hits.section_headers.push((
+            Rect::new(workspace_area.x, workspace_area.y, workspace_area.width, 1),
+            SidebarSection::Spaces,
+        ));
+    }
 
-    let entries = workspace_entries(snapshot, state.collapsed_groups);
+    let entries = if sections.spaces_collapsed {
+        Vec::new()
+    } else {
+        workspace_entries(snapshot, state.collapsed_groups)
+    };
     let body = Rect::new(
         workspace_area.x,
         workspace_area.y.saturating_add(WORKSPACE_HEADER_ROWS),
@@ -430,14 +451,59 @@ pub(crate) fn render_sidebar(
         }
     }
 
+    if accounts_area.height > 0 {
+        render_accounts_section(
+            buffer,
+            accounts_area,
+            config,
+            state.accounts,
+            state.account_scroll,
+            sections.accounts_collapsed,
+            hits,
+        );
+    }
+
+    let agent_panel_area = if sections.agents_collapsed {
+        Rect::new(
+            detail_area.x,
+            detail_area.y,
+            detail_area.width,
+            detail_area.height.min(FOLDED_SECTION_ROWS),
+        )
+    } else {
+        detail_area
+    };
     super::render_agent_panel(
         buffer,
-        detail_area,
+        agent_panel_area,
         snapshot,
         config,
         state.agent_scroll,
         hits,
     );
+    if detail_area.height >= 2 {
+        let header_y = detail_area.y.saturating_add(1);
+        render_section_fold_marker(
+            buffer,
+            detail_area,
+            header_y,
+            display_width(" agents"),
+            sections.agents_collapsed,
+            palette,
+        );
+        if config.mouse_capture {
+            let reserved = hits.agent_sort_toggle.width.saturating_add(1);
+            hits.section_headers.push((
+                Rect::new(
+                    detail_area.x,
+                    header_y,
+                    detail_area.width.saturating_sub(reserved),
+                    1,
+                ),
+                SidebarSection::Agents,
+            ));
+        }
+    }
 
     hits.sidebar_toggle = Rect::new(
         area.right().saturating_sub(2),
@@ -785,4 +851,343 @@ pub(in crate::client::shell) fn render_workspace_rows(
             }
         }
     }
+}
+
+/// Rows the accounts section spends on its divider and title.
+const ACCOUNTS_HEADER_ROWS: u16 = 2;
+/// Rows a folded spaces or agents section keeps (title, plus footer or divider).
+const FOLDED_SECTION_ROWS: u16 = 2;
+/// Below this many sidebar rows the accounts section stays hidden.
+const ACCOUNTS_MIN_SIDEBAR_ROWS: u16 = 12;
+
+/// Vertical split of the expanded desktop sidebar into spaces / accounts / agents.
+pub(in crate::client::shell) struct SidebarSectionLayout {
+    pub(in crate::client::shell) spaces: Rect,
+    pub(in crate::client::shell) accounts: Rect,
+    pub(in crate::client::shell) agents: Rect,
+    /// Rows shared by the split ratio: the whole content column minus the accounts section.
+    pub(in crate::client::shell) split_region: Rect,
+    pub(in crate::client::shell) section_divider: Rect,
+    pub(in crate::client::shell) spaces_collapsed: bool,
+    pub(in crate::client::shell) accounts_collapsed: bool,
+    pub(in crate::client::shell) agents_collapsed: bool,
+}
+
+impl SidebarSectionLayout {
+    pub(in crate::client::shell) fn compute(
+        area: Rect,
+        config: &ClientShellConfig,
+        state: &ShellRenderState<'_>,
+    ) -> Self {
+        let content = Rect::new(area.x, area.y, area.width.saturating_sub(1), area.height);
+        let spaces_collapsed = state.collapsed_sections.contains(&SidebarSection::Spaces);
+        let accounts_collapsed = state.collapsed_sections.contains(&SidebarSection::Accounts);
+        let agents_collapsed = state.collapsed_sections.contains(&SidebarSection::Agents);
+        if content.is_empty() {
+            return Self {
+                spaces: Rect::default(),
+                accounts: Rect::default(),
+                agents: Rect::default(),
+                split_region: Rect::default(),
+                section_divider: Rect::default(),
+                spaces_collapsed,
+                accounts_collapsed,
+                agents_collapsed,
+            };
+        }
+        let accounts_enabled = config.accounts.enabled
+            && !config.accounts.list_command.trim().is_empty()
+            && content.height >= ACCOUNTS_MIN_SIDEBAR_ROWS;
+        let accounts_height = if !accounts_enabled {
+            0
+        } else if accounts_collapsed {
+            ACCOUNTS_HEADER_ROWS
+        } else {
+            let body = account_section_body_lines(state.accounts);
+            let max_body = (content.height / 3).max(2);
+            ACCOUNTS_HEADER_ROWS.saturating_add(body.min(max_body))
+        };
+        let remaining = content.height.saturating_sub(accounts_height);
+        let folded = FOLDED_SECTION_ROWS.min(remaining);
+        let (spaces_height, agents_height) = match (spaces_collapsed, agents_collapsed) {
+            (true, _) => (folded, remaining.saturating_sub(folded)),
+            (false, true) => (remaining.saturating_sub(folded), folded),
+            (false, false) => {
+                crate::ui::sidebar_section_heights(remaining, state.sidebar_section_split)
+            }
+        };
+        let spaces = Rect::new(content.x, content.y, content.width, spaces_height);
+        let accounts = Rect::new(content.x, spaces.bottom(), content.width, accounts_height);
+        let agents = Rect::new(content.x, accounts.bottom(), content.width, agents_height);
+        let section_divider = if !spaces_collapsed && !agents_collapsed && remaining >= 6 {
+            Rect::new(content.x, agents.y, content.width, 1)
+        } else {
+            Rect::default()
+        };
+        Self {
+            spaces,
+            accounts,
+            agents,
+            split_region: Rect::new(content.x, content.y, content.width, remaining),
+            section_divider,
+            spaces_collapsed,
+            accounts_collapsed,
+            agents_collapsed,
+        }
+    }
+}
+
+/// Body rows the accounts list wants: two per account, or one for a message.
+fn account_section_body_lines(accounts: &super::super::accounts::ClientAccountsState) -> u16 {
+    if accounts.accounts.is_empty() {
+        1
+    } else {
+        accounts
+            .accounts
+            .len()
+            .saturating_mul(2)
+            .min(u16::MAX as usize) as u16
+    }
+}
+
+fn render_section_fold_marker(
+    buffer: &mut Buffer,
+    area: Rect,
+    y: u16,
+    title_width: u16,
+    collapsed: bool,
+    palette: &Palette,
+) {
+    let x = area.x.saturating_add(title_width).saturating_add(1);
+    if x >= area.right() {
+        return;
+    }
+    put_text(
+        buffer,
+        x,
+        y,
+        1,
+        if collapsed { "▸" } else { "▾" },
+        Style::default()
+            .fg(palette.overlay0)
+            .add_modifier(Modifier::DIM),
+    );
+}
+
+fn render_accounts_section(
+    buffer: &mut Buffer,
+    area: Rect,
+    config: &ClientShellConfig,
+    accounts: &super::super::accounts::ClientAccountsState,
+    account_scroll: &mut usize,
+    collapsed: bool,
+    hits: &mut ShellHitMap,
+) {
+    let palette = &config.palette;
+    put_text(
+        buffer,
+        area.x,
+        area.y,
+        area.width,
+        &"─".repeat(area.width as usize),
+        Style::default().fg(palette.surface_dim),
+    );
+    if area.height < 2 {
+        return;
+    }
+    let header_y = area.y.saturating_add(1);
+    let title = format!(" {}", config.accounts.title.trim());
+    put_text(
+        buffer,
+        area.x,
+        header_y,
+        area.width,
+        &title,
+        Style::default()
+            .fg(palette.overlay0)
+            .add_modifier(Modifier::BOLD),
+    );
+    render_section_fold_marker(
+        buffer,
+        area,
+        header_y,
+        display_width(&title),
+        collapsed,
+        palette,
+    );
+    let status = if accounts.busy {
+        Some(("…", palette.accent))
+    } else if accounts.error.is_some() {
+        Some(("!", palette.red))
+    } else {
+        None
+    };
+    let mut reserved = 0;
+    if let Some((glyph, color)) = status {
+        put_right_text(
+            buffer,
+            area,
+            header_y,
+            glyph,
+            Style::default().fg(color).add_modifier(Modifier::BOLD),
+        );
+        reserved = display_width(glyph).saturating_add(1);
+    }
+    if config.mouse_capture {
+        hits.section_headers.push((
+            Rect::new(area.x, header_y, area.width.saturating_sub(reserved), 1),
+            SidebarSection::Accounts,
+        ));
+    }
+
+    let body = Rect::new(
+        area.x,
+        area.y.saturating_add(ACCOUNTS_HEADER_ROWS),
+        area.width,
+        area.height.saturating_sub(ACCOUNTS_HEADER_ROWS),
+    );
+    hits.account_body = body;
+    if collapsed || body.is_empty() {
+        *account_scroll = 0;
+        return;
+    }
+    if accounts.accounts.is_empty() {
+        *account_scroll = 0;
+        let (message, color) = match accounts.error.as_deref() {
+            Some(error) => (format!(" ✖ {error}"), palette.red),
+            None if accounts.fetched_at.is_none() => (" connecting…".to_string(), palette.overlay0),
+            None => (" no accounts".to_string(), palette.overlay0),
+        };
+        put_text(
+            buffer,
+            body.x,
+            body.y,
+            body.width,
+            &message,
+            Style::default().fg(color).add_modifier(Modifier::DIM),
+        );
+        return;
+    }
+
+    let row_heights = vec![2u16; accounts.accounts.len()];
+    let gaps = vec![0u16; accounts.accounts.len()];
+    let metrics =
+        super::scroll::list_scroll_metrics(&row_heights, &gaps, body.height, *account_scroll);
+    hits.account_max_scroll = metrics.max_offset_from_bottom;
+    *account_scroll = metrics
+        .max_offset_from_bottom
+        .saturating_sub(metrics.offset_from_bottom);
+    let show_scrollbar = metrics.max_offset_from_bottom > 0 && body.width > 1;
+    let content_width = body.width.saturating_sub(u16::from(show_scrollbar));
+    let mut y = body.y;
+    for (index, account) in accounts.accounts.iter().enumerate().skip(*account_scroll) {
+        let height = 2u16.min(body.height);
+        if y.saturating_add(height) > body.bottom() {
+            break;
+        }
+        let rect = Rect::new(body.x, y, content_width, height);
+        render_account_row(buffer, rect, account, palette);
+        hits.accounts.push((rect, index));
+        y = y.saturating_add(height);
+    }
+    if show_scrollbar {
+        let track = Rect::new(body.right().saturating_sub(1), body.y, 1, body.height);
+        super::scroll::render_list_scrollbar(buffer, track, metrics, palette);
+    }
+}
+
+fn usage_color(pct: Option<u8>, palette: &Palette) -> ratatui::style::Color {
+    match pct {
+        Some(pct) if pct >= 85 => palette.red,
+        Some(pct) if pct >= 60 => palette.peach,
+        Some(_) => palette.teal,
+        None => palette.overlay0,
+    }
+}
+
+fn render_account_row(
+    buffer: &mut Buffer,
+    rect: Rect,
+    account: &super::super::accounts::ClientAccount,
+    palette: &Palette,
+) {
+    if account.active {
+        buffer.set_style(rect, Style::default().bg(palette.active_row_bg));
+    }
+    let right = rect.right();
+    let (icon, icon_color) = if account.disabled {
+        ("×", palette.red)
+    } else if account.active {
+        ("◆", palette.accent)
+    } else {
+        ("◇", palette.overlay0)
+    };
+    let mut x = put_segment(
+        buffer,
+        rect.x.saturating_add(1),
+        rect.y,
+        right,
+        icon,
+        Style::default().fg(icon_color).add_modifier(Modifier::BOLD),
+    );
+    let label_style = if account.active {
+        Style::default()
+            .fg(palette.text)
+            .add_modifier(Modifier::BOLD)
+    } else if account.disabled {
+        Style::default()
+            .fg(palette.overlay0)
+            .add_modifier(Modifier::DIM)
+    } else {
+        Style::default()
+            .fg(palette.subtext0)
+            .add_modifier(Modifier::BOLD)
+    };
+    x = put_segment(
+        buffer,
+        x.saturating_add(1),
+        rect.y,
+        right,
+        account.label(),
+        label_style,
+    );
+    if account.disabled {
+        put_segment(
+            buffer,
+            x.saturating_add(1),
+            rect.y,
+            right,
+            "offline",
+            Style::default().fg(palette.red).add_modifier(Modifier::DIM),
+        );
+    }
+    if rect.height < 2 {
+        return;
+    }
+    let y = rect.y.saturating_add(1);
+    let dim = Style::default().fg(palette.overlay0);
+    let value = Style::default().fg(palette.subtext0);
+    let pct_text = |pct: Option<u8>| match pct {
+        Some(pct) => format!("{pct:>3}%"),
+        None => "  --".to_string(),
+    };
+    let mut x = put_segment(buffer, rect.x.saturating_add(3), y, right, "5h ", dim);
+    x = put_segment(
+        buffer,
+        x,
+        y,
+        right,
+        &super::super::accounts::usage_bar(account.five_hour_pct),
+        Style::default().fg(usage_color(account.five_hour_pct, palette)),
+    );
+    x = put_segment(buffer, x, y, right, &pct_text(account.five_hour_pct), value);
+    x = put_segment(buffer, x, y, right, "  7d ", dim);
+    put_segment(
+        buffer,
+        x,
+        y,
+        right,
+        pct_text(account.seven_day_pct).trim_start(),
+        Style::default().fg(usage_color(account.seven_day_pct, palette)),
+    );
 }

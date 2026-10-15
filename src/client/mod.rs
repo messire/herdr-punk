@@ -666,6 +666,19 @@ async fn run_client_loop(
     let mut pending_catalog: Option<Result<Vec<endpoint::SavedSshEndpoint>, String>> = None;
     if state.shell.is_some() && !is_remote_client && state.attach_escape.is_none() {
         catalog_reload::watch_profiles(event_tx.clone(), should_quit.clone());
+        if let Some(shell) = state.shell.as_mut() {
+            let accounts_tx = event_tx.clone();
+            let control = shell::spawn_accounts_poller(
+                shell.accounts_config(),
+                move |result| {
+                    accounts_tx
+                        .blocking_send(ClientLoopEvent::AccountsRefreshed(result))
+                        .is_ok()
+                },
+                should_quit.clone(),
+            );
+            shell.set_accounts_control(control);
+        }
     }
 
     // This (foreground) client owns the prefix ASCII input-source switch
@@ -848,6 +861,22 @@ async fn run_client_loop(
                 }
             }
             ClientLoopEvent::EndpointCatalog(reload) => pending_catalog = Some(reload),
+            ClientLoopEvent::AccountsRefreshed(result) => {
+                let (cols, rows) = state.reported_size;
+                let repaint = state
+                    .shell
+                    .as_mut()
+                    .is_some_and(|shell| shell.apply_accounts_result(result));
+                if repaint {
+                    if let Some(frame) = state
+                        .shell
+                        .as_mut()
+                        .and_then(|shell| shell.compose(cols, rows))
+                    {
+                        state.present_frame(frame);
+                    }
+                }
+            }
             #[cfg(unix)]
             ClientLoopEvent::StdinInput(data) => {
                 let image_bridge_active = endpoint_accepts_local_images(

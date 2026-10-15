@@ -50,6 +50,14 @@ impl ClientContextMenuOverlay {
                 item("Rename", Action::Rename),
                 item("Close", Action::Close),
             ],
+            ClientContextMenuTarget::Account { active, .. } => {
+                let mut items = Vec::new();
+                if !*active {
+                    items.push(item("Switch to this account", Action::SwitchAccount));
+                }
+                items.push(item("Refresh accounts", Action::RefreshAccounts));
+                items
+            }
             ClientContextMenuTarget::Pane {
                 source_pane_id,
                 has_manual_label,
@@ -116,6 +124,21 @@ impl ClientShellState {
                 has_worktree_children,
                 close_group,
                 collapsed,
+            },
+            x,
+            y,
+            highlighted: 0,
+        }));
+    }
+
+    pub(super) fn open_account_context_menu(&mut self, index: usize, x: u16, y: u16) {
+        let Some(account) = self.accounts.accounts.get(index) else {
+            return;
+        };
+        self.overlay = Some(ClientShellOverlay::ContextMenu(ClientContextMenuOverlay {
+            target: ClientContextMenuTarget::Account {
+                number: account.number,
+                active: account.active,
             },
             x,
             y,
@@ -201,6 +224,20 @@ impl ClientShellState {
                 tab_id,
                 workspace_id,
             } => self.activate_tab_context_action(tab_id, workspace_id, action, outcome),
+            ClientContextMenuTarget::Account { number, .. } => match action {
+                ClientContextMenuAction::SwitchAccount => {
+                    if let Some(index) = self
+                        .accounts
+                        .accounts
+                        .iter()
+                        .position(|account| account.number == number)
+                    {
+                        self.request_account_switch(index);
+                    }
+                }
+                ClientContextMenuAction::RefreshAccounts => self.request_accounts_refresh(),
+                _ => {}
+            },
             ClientContextMenuTarget::Pane {
                 pane_id,
                 workspace_id,
