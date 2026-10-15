@@ -1,0 +1,83 @@
+name: punk windows build
+
+# Fork-only: builds the Windows package and publishes it to the `builds` branch so
+# it can be fetched with plain git (the Actions artifact store is not reachable
+# from every network).
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/accounts-sidebar-section, punk]
+
+permissions:
+  contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  RUST_TOOLCHAIN_VERSION: 1.96.1
+  LIBGHOSTTY_VT_OPTIMIZE: ReleaseSafe
+  LIBGHOSTTY_VT_SIMD: "false"
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          persist-credentials: true
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # v1
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN_VERSION }}
+          targets: x86_64-pc-windows-msvc
+
+      - name: Install Zig
+        uses: vercel-labs/setup-zig@83c1594f26b86da8a9a8ddd9b5ee5f3af0f96943 # v1.0.2
+        with:
+          version: 0.16.0
+
+      - name: Build
+        run: cargo build --release --locked --target x86_64-pc-windows-msvc
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $package = Join-Path $env:RUNNER_TEMP "Microsoft.Windows.Console.ConPTY.nupkg"
+          $stage = Join-Path $env:RUNNER_TEMP "herdr-windows-x86_64"
+          .\scripts\package_windows_conpty.ps1 `
+            -HerdrExe target\x86_64-pc-windows-msvc\release\herdr.exe `
+            -PackagePath $package `
+            -StageDir $stage `
+            -OutputPath herdr-windows-x86_64.zip
+          $hash = (Get-FileHash -Algorithm SHA256 herdr-windows-x86_64.zip).Hash.ToLowerInvariant()
+          "commit=$env:GITHUB_SHA`nsha256=$hash  herdr-windows-x86_64.zip" | Out-File -Encoding utf8 BUILD_INFO.txt
+          Get-Content BUILD_INFO.txt
+
+      - name: Publish to builds branch
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $out = Join-Path $env:RUNNER_TEMP "builds"
+          git worktree add --detach $out
+          Push-Location $out
+          git checkout --orphan builds
+          git rm -rfq . 2>$null
+          Copy-Item (Join-Path $env:GITHUB_WORKSPACE "herdr-windows-x86_64.zip") .
+          Copy-Item (Join-Path $env:GITHUB_WORKSPACE "BUILD_INFO.txt") .
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add herdr-windows-x86_64.zip BUILD_INFO.txt
+          git commit -q -m "build: herdr-windows-x86_64 from $env:GITHUB_SHA"
+          git push --force origin builds
+          Pop-Location
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: herdr-windows-x86_64
+          path: |
+            herdr-windows-x86_64.zip
+            BUILD_INFO.txt
+          retention-days: 7
