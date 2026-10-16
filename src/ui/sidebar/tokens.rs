@@ -126,6 +126,8 @@ pub(crate) struct SpaceTokenContext<'a> {
     pub(crate) branch: Option<&'a str>,
     pub(crate) state_text: &'a str,
     pub(crate) ahead_behind: Option<(usize, usize)>,
+    /// Open tabs in the space; `tab_count` renders nothing for zero.
+    pub(crate) tab_count: usize,
     pub(crate) tokens: &'a std::collections::HashMap<String, String>,
     pub(crate) suppress_git_details: bool,
 }
@@ -159,6 +161,8 @@ pub(crate) fn space_rows(
                             .filter(|(ahead, behind)| *ahead > 0 || *behind > 0)
                             .map(|(ahead, behind)| ResolvedTokenKind::GitStatus { ahead, behind }),
                         SpaceSidebarToken::GitStatus => None,
+                        SpaceSidebarToken::TabCount => (context.tab_count > 0)
+                            .then(|| ResolvedTokenKind::Custom(context.tab_count.to_string())),
                         SpaceSidebarToken::Custom(name) => context
                             .tokens
                             .get(name)
@@ -330,6 +334,7 @@ rows = [[{ token = "$load", rules = [{ lt = 50, dim = true }] }]]
                     branch: None,
                     state_text: "working",
                     ahead_behind: None,
+                    tab_count: 0,
                     suppress_git_details: false,
                     tokens: &entry.tokens,
                 },
@@ -379,6 +384,7 @@ rows = [[{ token = "$load", rules = [{ lt = 50, hide = true }] }], ["workspace"]
                     branch: None,
                     state_text: "working",
                     ahead_behind: None,
+                    tab_count: 0,
                     suppress_git_details: false,
                     tokens: &entry.tokens,
                 },
@@ -548,6 +554,7 @@ rows = [[{ token = "$load", rules = [{ lt = 50, hide = true }] }], ["workspace"]
                     branch: Some("worktree/feature"),
                     state_text: "idle",
                     ahead_behind: Some((2, 1)),
+                    tab_count: 0,
                     tokens: &std::collections::HashMap::new(),
                     suppress_git_details: true,
                 },
@@ -575,6 +582,7 @@ rows = [[{ token = "$load", rules = [{ lt = 50, hide = true }] }], ["workspace"]
                     branch: None,
                     state_text: "idle",
                     ahead_behind: None,
+                    tab_count: 0,
                     tokens: &tokens,
                     suppress_git_details: false,
                 },
