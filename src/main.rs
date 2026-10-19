@@ -323,6 +323,8 @@ const DEFAULT_CONFIG: &str = r##"# herdr configuration
 # Hostname, datetime, and command entries resolve on the Herdr server.
 # tab_bar_right = []
 # tab_bar_right_separator = " "
+# Style right-side entries by text (first match wins):
+# tab_bar_right_styles = [{ contains = "AFTER LIFE", fg = "#FCEE0A", bold = true }]
 
 # Title Herdr writes to the terminal it runs in, which is what window managers
 # show in title, tab, and group bars. Tokens are {hostname}, {workspace}, {tab},

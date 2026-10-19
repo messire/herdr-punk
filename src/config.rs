@@ -31,8 +31,8 @@ pub use self::{
         UpdateChannelConfig, MAX_TOAST_DELAY_SECONDS,
     },
     sidebar::{
-        AgentSidebarToken, AgentsSidebarConfig, SidebarConfig, SidebarTokenStyle,
-        SpaceSidebarToken, SpacesSidebarConfig,
+        AgentSidebarToken, AgentsSidebarConfig, SidebarConfig, SidebarTokenRule,
+        SidebarTokenStyle, SpaceSidebarToken, SpacesSidebarConfig,
     },
     sound::SoundConfig,
     tab_bar::TabBarRightEntryConfig,
@@ -46,6 +46,7 @@ pub(crate) use self::keybinds::parse_key_combo;
 pub(crate) use self::write::{update_file_at, write_edit, ConfigEdit};
 pub(crate) use self::{
     accounts::accounts_diagnostics,
+    sidebar::rule_style_for,
     io::upsert_top_level_bool,
     tab_bar::{
         parse_tab_bar_datetime_format, tab_bar_right_diagnostics,

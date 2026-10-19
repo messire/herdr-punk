@@ -1131,6 +1131,12 @@
           "description": "Text inserted between visible right-aligned tab bar entries."
         },
         {
+          "key": "ui.tab_bar_right_styles",
+          "type": "array",
+          "default": "[]",
+          "description": "Client-side styling rules for right-aligned tab bar entries, matched against each entry's text with equals, contains or starts_with (plus ignore_case). Rules accept fg, bold, dim and hide; the first match wins."
+        },
+        {
           "key": "ui.window_title",
           "type": "string",
           "default": "\"{hostname}: {workspace}\"",

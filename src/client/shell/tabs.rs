@@ -220,7 +220,7 @@ pub(crate) fn render_tab_bar(
             );
         }
     }
-    render_tab_bar_status(buffer, area, snapshot, palette);
+    render_tab_bar_status(buffer, area, snapshot, config);
 }
 
 pub(crate) fn tab_bar_status_width(snapshot: &ClientShellSnapshot) -> u16 {
@@ -258,8 +258,9 @@ fn render_tab_bar_status(
     buffer: &mut Buffer,
     area: Rect,
     snapshot: &ClientShellSnapshot,
-    palette: &Palette,
+    config: &ClientShellConfig,
 ) {
+    let palette = &config.palette;
     let Some(status) = tab_bar_status_area(snapshot, area) else {
         return;
     };
@@ -284,7 +285,12 @@ fn render_tab_bar_status(
                 .bg(palette.accent)
                 .add_modifier(Modifier::BOLD)
         } else {
-            Style::default().fg(palette.overlay1).bg(palette.panel_bg)
+            let base = Style::default().fg(palette.overlay1).bg(palette.panel_bg);
+            match crate::config::rule_style_for(&config.tab_bar_right_styles, &segment.text) {
+                Some(patch) => crate::ui::apply_token_style(base, patch),
+                // `hide = true`: the server already reserved the width, so blank it out.
+                None => base.fg(palette.panel_bg),
+            }
         };
         put_text(buffer, x, area.y, width, &segment.text, style);
         x = x.saturating_add(width);
