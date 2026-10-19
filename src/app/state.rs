@@ -224,6 +224,31 @@ impl Palette {
         }
     }
 
+    /// Daemon 2.0 — Cyberpunk 2077 inspired: blood red on dark wine, cyan text.
+    pub fn daemon() -> Self {
+        Self {
+            accent: Color::Rgb(255, 43, 74),
+            panel_bg: Color::Reset,
+            sidebar_bg: Color::Reset,
+            active_row_bg: Color::Rgb(42, 15, 28),
+            selection_bg: Color::Rgb(20, 58, 60),
+            surface0: Color::Rgb(36, 16, 25),
+            surface1: Color::Rgb(50, 22, 36),
+            surface_dim: Color::Rgb(28, 13, 22),
+            overlay0: Color::Rgb(94, 68, 84),
+            overlay1: Color::Rgb(122, 92, 110),
+            text: Color::Rgb(155, 232, 234),
+            subtext0: Color::Rgb(98, 185, 188),
+            mauve: Color::Rgb(192, 19, 42),
+            green: Color::Rgb(63, 167, 170),
+            yellow: Color::Rgb(255, 43, 74),
+            red: Color::Rgb(255, 43, 74),
+            blue: Color::Rgb(103, 224, 227),
+            teal: Color::Rgb(103, 224, 227),
+            peach: Color::Rgb(255, 107, 74),
+        }
+    }
+
     /// Nord — frosty blue palette.
     pub fn nord() -> Self {
         Self {
@@ -545,6 +570,7 @@ impl Palette {
             "rose-pine" => Some(Self::rose_pine()),
             "rose-pine-dawn" => Some(Self::rose_pine_dawn()),
             "vesper" => Some(Self::vesper()),
+            "daemon" => Some(Self::daemon()),
             _ => None,
         }
     }

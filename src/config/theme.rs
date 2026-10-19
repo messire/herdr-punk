@@ -20,6 +20,7 @@ pub const THEME_NAMES: &[&str] = &[
     "rose-pine",
     "rose-pine-dawn",
     "vesper",
+    "daemon",
 ];
 
 pub(crate) fn canonical_theme_name(name: &str) -> Option<&'static str> {
@@ -42,6 +43,7 @@ pub(crate) fn canonical_theme_name(name: &str) -> Option<&'static str> {
         "rose-pine" | "rosepine" => Some("rose-pine"),
         "rose-pine-dawn" | "rosepine-dawn" | "dawn" => Some("rose-pine-dawn"),
         "vesper" => Some("vesper"),
+        "daemon" | "daemon-2.0" | "daemon2" | "cyberpunk" => Some("daemon"),
         _ => None,
     }
 }
@@ -69,6 +71,97 @@ pub struct ThemeConfig {
     pub light_name: Option<String>,
     /// Custom overrides — applied on top of the selected base theme.
     pub custom: Option<CustomThemeColors>,
+    /// ANSI palette Herdr substitutes for the 16 named/indexed colors inside
+    /// panes, so pane programs follow the theme without a terminal scheme.
+    /// Empty keys fall back to the built-in theme's palette; themes without one
+    /// pass the terminal's own colors through.
+    pub ansi: AnsiThemeColors,
+}
+
+/// Overrides for the 16 standard ANSI colors used inside panes.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+#[serde(default)]
+pub struct AnsiThemeColors {
+    pub black: Option<String>,
+    pub red: Option<String>,
+    pub green: Option<String>,
+    pub yellow: Option<String>,
+    pub blue: Option<String>,
+    pub magenta: Option<String>,
+    pub cyan: Option<String>,
+    pub white: Option<String>,
+    pub bright_black: Option<String>,
+    pub bright_red: Option<String>,
+    pub bright_green: Option<String>,
+    pub bright_yellow: Option<String>,
+    pub bright_blue: Option<String>,
+    pub bright_magenta: Option<String>,
+    pub bright_cyan: Option<String>,
+    pub bright_white: Option<String>,
+}
+
+impl AnsiThemeColors {
+    fn slots(&self) -> [&Option<String>; 16] {
+        [
+            &self.black,
+            &self.red,
+            &self.green,
+            &self.yellow,
+            &self.blue,
+            &self.magenta,
+            &self.cyan,
+            &self.white,
+            &self.bright_black,
+            &self.bright_red,
+            &self.bright_green,
+            &self.bright_yellow,
+            &self.bright_blue,
+            &self.bright_magenta,
+            &self.bright_cyan,
+            &self.bright_white,
+        ]
+    }
+
+    /// The pane palette for `theme_name` with these overrides applied, or None
+    /// when neither the theme nor the overrides define any color.
+    pub(crate) fn resolve(&self, theme_name: &str) -> Option<[Option<(u8, u8, u8)>; 16]> {
+        let mut palette = builtin_ansi_palette(theme_name).map(|rgb| rgb.map(Some));
+        for (slot, value) in self.slots().into_iter().enumerate() {
+            let Some(value) = value.as_deref().map(str::trim).filter(|v| !v.is_empty()) else {
+                continue;
+            };
+            if let ratatui::style::Color::Rgb(r, g, b) = parse_color(value) {
+                palette.get_or_insert([None; 16])[slot] = Some((r, g, b));
+            }
+        }
+        palette
+    }
+}
+
+/// Built-in pane palettes. Only themes that want to recolor pane programs
+/// define one; the rest leave the terminal's ANSI colors alone.
+pub(crate) fn builtin_ansi_palette(theme_name: &str) -> Option<[(u8, u8, u8); 16]> {
+    match canonical_theme_name(theme_name)? {
+        "daemon" => Some([
+            (0x1C, 0x0D, 0x16), // black
+            (0xFF, 0x2B, 0x4A), // red
+            (0x3F, 0xA7, 0xAA), // green
+            (0xFF, 0x6B, 0x4A), // yellow
+            (0x67, 0xE0, 0xE3), // blue
+            (0xC0, 0x13, 0x2A), // magenta
+            (0x67, 0xE0, 0xE3), // cyan
+            (0x9B, 0xE8, 0xEA), // white
+            (0x5E, 0x44, 0x54), // bright black
+            (0xFF, 0x5C, 0x73), // bright red
+            (0x67, 0xE0, 0xE3), // bright green
+            (0xFF, 0xA0, 0x7A), // bright yellow
+            (0xA7, 0xF0, 0xF2), // bright blue
+            (0xFF, 0x2B, 0x4A), // bright magenta
+            (0xA7, 0xF0, 0xF2), // bright cyan
+            (0xE6, 0xFB, 0xFB), // bright white
+        ]),
+        _ => None,
+    }
 }
 
 impl ThemeConfig {

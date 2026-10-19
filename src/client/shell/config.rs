@@ -116,6 +116,12 @@ impl ClientShellState {
     }
 }
 
+/// The pane ANSI palette for the configured (manual) theme plus `[theme.ansi]` overrides.
+fn pane_ansi_palette_from_config(config: &Config) -> Option<[Option<(u8, u8, u8)>; 16]> {
+    let name = config.theme.name.as_deref().unwrap_or("catppuccin");
+    config.theme.ansi.resolve(name)
+}
+
 impl ClientShellConfig {
     pub(crate) fn from_config(config: &Config) -> Self {
         let theme_runtime = crate::app::client_theme_runtime_from_config(config);
@@ -142,7 +148,12 @@ impl ClientShellConfig {
             clipboard_toast_position: config.ui.toast.clipboard.position,
             theme_name: theme_runtime.manual_name.clone(),
             theme_runtime,
-            palette: crate::app::client_palette_from_config(config),
+            palette: {
+                crate::protocol::render_ansi::set_pane_ansi_palette(pane_ansi_palette_from_config(
+                    config,
+                ));
+                crate::app::client_palette_from_config(config)
+            },
             keybinds: config
                 .live_keybinds_with_diagnostics()
                 .map(|(keybinds, _diagnostics)| keybinds)
@@ -383,6 +394,9 @@ impl ClientShellConfig {
             self.theme_runtime = crate::app::client_theme_runtime_from_config(config);
             self.theme_name = self.theme_runtime.manual_name.clone();
             self.palette = crate::app::client_palette_from_config(config);
+            crate::protocol::render_ansi::set_pane_ansi_palette(pane_ansi_palette_from_config(
+                config,
+            ));
         }
         if !invalid_section("experimental") {
             self.switch_ascii_input_source_in_prefix =

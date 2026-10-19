@@ -405,6 +405,102 @@
           "type": "color",
           "default": "unset",
           "description": "Override the peach color token when auto_switch selects a dark appearance. Applied after theme.custom. Accepts hex, named colors, rgb(r,g,b), or reset aliases."
+        },
+        {
+          "key": "theme.ansi.black",
+          "type": "color",
+          "default": "unset",
+          "description": "Replace ANSI `black` inside panes with this color so pane programs follow the theme instead of the terminal scheme. Unset uses the built-in theme's pane palette when it has one (daemon), otherwise the terminal's own color."
+        },
+        {
+          "key": "theme.ansi.red",
+          "type": "color",
+          "default": "unset",
+          "description": "Replace ANSI `red` inside panes with this color so pane programs follow the theme instead of the terminal scheme. Unset uses the built-in theme's pane palette when it has one (daemon), otherwise the terminal's own color."
+        },
+        {
+          "key": "theme.ansi.green",
+          "type": "color",
+          "default": "unset",
+          "description": "Replace ANSI `green` inside panes with this color so pane programs follow the theme instead of the terminal scheme. Unset uses the built-in theme's pane palette when it has one (daemon), otherwise the terminal's own color."
+        },
+        {
+          "key": "theme.ansi.yellow",
+          "type": "color",
+          "default": "unset",
+          "description": "Replace ANSI `yellow` inside panes with this color so pane programs follow the theme instead of the terminal scheme. Unset uses the built-in theme's pane palette when it has one (daemon), otherwise the terminal's own color."
+        },
+        {
+          "key": "theme.ansi.blue",
+          "type": "color",
+          "default": "unset",
+          "description": "Replace ANSI `blue` inside panes with this color so pane programs follow the theme instead of the terminal scheme. Unset uses the built-in theme's pane palette when it has one (daemon), otherwise the terminal's own color."
+        },
+        {
+          "key": "theme.ansi.magenta",
+          "type": "color",
+          "default": "unset",
+          "description": "Replace ANSI `magenta` inside panes with this color so pane programs follow the theme instead of the terminal scheme. Unset uses the built-in theme's pane palette when it has one (daemon), otherwise the terminal's own color."
+        },
+        {
+          "key": "theme.ansi.cyan",
+          "type": "color",
+          "default": "unset",
+          "description": "Replace ANSI `cyan` inside panes with this color so pane programs follow the theme instead of the terminal scheme. Unset uses the built-in theme's pane palette when it has one (daemon), otherwise the terminal's own color."
+        },
+        {
+          "key": "theme.ansi.white",
+          "type": "color",
+          "default": "unset",
+          "description": "Replace ANSI `white` inside panes with this color so pane programs follow the theme instead of the terminal scheme. Unset uses the built-in theme's pane palette when it has one (daemon), otherwise the terminal's own color."
+        },
+        {
+          "key": "theme.ansi.bright_black",
+          "type": "color",
+          "default": "unset",
+          "description": "Replace ANSI `bright_black` inside panes with this color so pane programs follow the theme instead of the terminal scheme. Unset uses the built-in theme's pane palette when it has one (daemon), otherwise the terminal's own color."
+        },
+        {
+          "key": "theme.ansi.bright_red",
+          "type": "color",
+          "default": "unset",
+          "description": "Replace ANSI `bright_red` inside panes with this color so pane programs follow the theme instead of the terminal scheme. Unset uses the built-in theme's pane palette when it has one (daemon), otherwise the terminal's own color."
+        },
+        {
+          "key": "theme.ansi.bright_green",
+          "type": "color",
+          "default": "unset",
+          "description": "Replace ANSI `bright_green` inside panes with this color so pane programs follow the theme instead of the terminal scheme. Unset uses the built-in theme's pane palette when it has one (daemon), otherwise the terminal's own color."
+        },
+        {
+          "key": "theme.ansi.bright_yellow",
+          "type": "color",
+          "default": "unset",
+          "description": "Replace ANSI `bright_yellow` inside panes with this color so pane programs follow the theme instead of the terminal scheme. Unset uses the built-in theme's pane palette when it has one (daemon), otherwise the terminal's own color."
+        },
+        {
+          "key": "theme.ansi.bright_blue",
+          "type": "color",
+          "default": "unset",
+          "description": "Replace ANSI `bright_blue` inside panes with this color so pane programs follow the theme instead of the terminal scheme. Unset uses the built-in theme's pane palette when it has one (daemon), otherwise the terminal's own color."
+        },
+        {
+          "key": "theme.ansi.bright_magenta",
+          "type": "color",
+          "default": "unset",
+          "description": "Replace ANSI `bright_magenta` inside panes with this color so pane programs follow the theme instead of the terminal scheme. Unset uses the built-in theme's pane palette when it has one (daemon), otherwise the terminal's own color."
+        },
+        {
+          "key": "theme.ansi.bright_cyan",
+          "type": "color",
+          "default": "unset",
+          "description": "Replace ANSI `bright_cyan` inside panes with this color so pane programs follow the theme instead of the terminal scheme. Unset uses the built-in theme's pane palette when it has one (daemon), otherwise the terminal's own color."
+        },
+        {
+          "key": "theme.ansi.bright_white",
+          "type": "color",
+          "default": "unset",
+          "description": "Replace ANSI `bright_white` inside panes with this color so pane programs follow the theme instead of the terminal scheme. Unset uses the built-in theme's pane palette when it has one (daemon), otherwise the terminal's own color."
         }
       ]
     },

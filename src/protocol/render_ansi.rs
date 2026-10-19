@@ -340,11 +340,51 @@ fn compute_prof_blit_stats(
 // Color → escape sequence
 // ---------------------------------------------------------------------------
 
+/// Theme-provided replacements for the 16 standard ANSI colors. When set, named
+/// and low-indexed colors inside panes are emitted as RGB so pane programs
+/// follow the Herdr theme instead of the outer terminal's scheme.
+static PANE_ANSI_PALETTE: std::sync::RwLock<Option<[Option<(u8, u8, u8)>; 16]>> =
+    std::sync::RwLock::new(None);
+
+/// Installs (or clears) the pane ANSI palette for this process.
+pub(crate) fn set_pane_ansi_palette(palette: Option<[Option<(u8, u8, u8)>; 16]>) {
+    if let Ok(mut slot) = PANE_ANSI_PALETTE.write() {
+        *slot = palette;
+    }
+}
+
+/// The ANSI slot (0–15) a packed color refers to, if it is one of the 16.
+fn ansi_slot(val: u32) -> Option<usize> {
+    match val >> 24 {
+        // Named colors: 0x01 Black … 0x10 White, in ANSI order.
+        0x00 => match val & 0xFF {
+            slot @ 0x01..=0x10 => Some(slot as usize - 1),
+            _ => None,
+        },
+        0x01 => match val & 0xFF {
+            slot @ 0..=15 => Some(slot as usize),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn pane_ansi_rgb(val: u32) -> Option<(u8, u8, u8)> {
+    let slot = ansi_slot(val)?;
+    PANE_ANSI_PALETTE
+        .read()
+        .ok()
+        .and_then(|palette| palette.as_ref().and_then(|palette| palette[slot]))
+}
+
 /// Converts a packed u32 color to an SGR escape sequence fragment.
 ///
 /// Returns a string like `38;5;123` (indexed) or `38;2;255;128;64` (RGB)
 /// or `39` (reset), without the leading `\x1b[` or trailing `m`.
 fn color_to_sgr_fg(val: u32) -> String {
+    if let Some((r, g, b)) = pane_ansi_rgb(val) {
+        return format!("38;2;{r};{g};{b}");
+    }
     match val >> 24 {
         0x00 => match val & 0xFF {
             0x00 => "39".to_owned(), // Reset
@@ -380,6 +420,9 @@ fn color_to_sgr_fg(val: u32) -> String {
 
 /// Converts a packed u32 color to a background SGR fragment.
 fn color_to_sgr_bg(val: u32) -> String {
+    if let Some((r, g, b)) = pane_ansi_rgb(val) {
+        return format!("48;2;{r};{g};{b}");
+    }
     match val >> 24 {
         0x00 => match val & 0xFF {
             0x00 => "49".to_owned(),  // Reset
