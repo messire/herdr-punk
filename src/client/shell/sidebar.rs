@@ -211,7 +211,7 @@ pub(crate) fn render_sidebar(
     } else {
         Rect::new(area.right().saturating_sub(1), area.y, 1, area.height)
     };
-    let sections = SidebarSectionLayout::compute(area, config, state);
+    let sections = SidebarSectionLayout::compute(area, snapshot, config, state);
     let workspace_area = sections.spaces;
     let accounts_area = sections.accounts;
     let detail_area = sections.agents;
@@ -896,6 +896,7 @@ pub(in crate::client::shell) struct SidebarSectionLayout {
 impl SidebarSectionLayout {
     pub(in crate::client::shell) fn compute(
         area: Rect,
+        snapshot: &ClientShellSnapshot,
         config: &ClientShellConfig,
         state: &ShellRenderState<'_>,
     ) -> Self {
@@ -931,7 +932,13 @@ impl SidebarSectionLayout {
         let folded = FOLDED_SECTION_ROWS.min(remaining);
         let (spaces_height, agents_height) = match (spaces_collapsed, agents_collapsed) {
             (true, _) => (folded, remaining.saturating_sub(folded)),
-            (false, true) => (remaining.saturating_sub(folded), folded),
+            // A folded agents section sits right under the spaces content; the slack
+            // stays at the bottom instead of pushing the agents title down there.
+            (false, true) => {
+                let natural = spaces_natural_height(snapshot, config, state);
+                let spaces = natural.clamp(3, remaining.saturating_sub(folded).max(3));
+                (spaces, remaining.saturating_sub(spaces))
+            }
             (false, false) => {
                 crate::ui::sidebar_section_heights(remaining, state.sidebar_section_split)
             }
@@ -955,6 +962,34 @@ impl SidebarSectionLayout {
             agents_collapsed,
         }
     }
+}
+
+/// Rows the spaces section needs to show every entry: title, rows with gaps, footer.
+fn spaces_natural_height(
+    snapshot: &ClientShellSnapshot,
+    config: &ClientShellConfig,
+    state: &ShellRenderState<'_>,
+) -> u16 {
+    let entries = workspace_entries(snapshot, state.collapsed_groups);
+    let mut rows: usize = 0;
+    for (index, entry) in entries.iter().enumerate() {
+        let Some(workspace) = snapshot.workspaces.get(entry.index) else {
+            continue;
+        };
+        rows += workspace_rows(
+            workspace,
+            displayed_workspace_status(snapshot, workspace, state.collapsed_groups),
+            entry.indented,
+            workspace_tab_count(snapshot, &workspace.workspace_id),
+            &config.spaces,
+        )
+        .len()
+        .max(1);
+        if let Some(next) = entries.get(index + 1) {
+            rows += usize::from(!next.indented) * usize::from(config.spaces.row_gap);
+        }
+    }
+    (usize::from(WORKSPACE_HEADER_ROWS) + rows + 1).min(u16::MAX as usize) as u16
 }
 
 /// Body rows the accounts list wants: each account's lines, or one for a message.
@@ -1227,7 +1262,7 @@ fn render_account_row(
     }
 }
 
-/// One usage window: `5h ▰▰▱▱▱  38%  ↻4h 55m`.
+/// One usage window: `5h ▰▰▱▱▱  38%  4h 55m`.
 #[allow(clippy::too_many_arguments)] // a flat draw helper; a struct would only rename the args
 fn render_usage_line(
     buffer: &mut Buffer,
@@ -1258,7 +1293,7 @@ fn render_usage_line(
     );
     x = put_segment(buffer, x, y, right, &pct_text, value);
     if let Some(reset) = reset {
-        x = put_segment(buffer, x, y, right, "  ↻", dim);
+        x = put_segment(buffer, x, y, right, "  ", dim);
         put_segment(buffer, x, y, right, reset, dim);
     }
 }
