@@ -957,15 +957,16 @@ impl SidebarSectionLayout {
     }
 }
 
-/// Body rows the accounts list wants: two per account, or one for a message.
+/// Body rows the accounts list wants: each account's lines, or one for a message.
 fn account_section_body_lines(accounts: &super::super::accounts::ClientAccountsState) -> u16 {
     if accounts.accounts.is_empty() {
         1
     } else {
         accounts
             .accounts
-            .len()
-            .saturating_mul(2)
+            .iter()
+            .map(|account| account.line_count())
+            .sum::<usize>()
             .min(u16::MAX as usize) as u16
     }
 }
@@ -1089,7 +1090,11 @@ fn render_accounts_section(
         return;
     }
 
-    let row_heights = vec![2u16; accounts.accounts.len()];
+    let row_heights = accounts
+        .accounts
+        .iter()
+        .map(|account| account.line_count().min(u16::MAX as usize) as u16)
+        .collect::<Vec<_>>();
     let gaps = vec![0u16; accounts.accounts.len()];
     let metrics =
         super::scroll::list_scroll_metrics(&row_heights, &gaps, body.height, *account_scroll);
@@ -1101,7 +1106,7 @@ fn render_accounts_section(
     let content_width = body.width.saturating_sub(u16::from(show_scrollbar));
     let mut y = body.y;
     for (index, account) in accounts.accounts.iter().enumerate().skip(*account_scroll) {
-        let height = 2u16.min(body.height);
+        let height = row_heights[index].min(body.height);
         if y.saturating_add(height) > body.bottom() {
             break;
         }
@@ -1142,7 +1147,7 @@ fn render_account_row(
     } else {
         ("◇", palette.overlay0)
     };
-    let mut x = put_segment(
+    let x = put_segment(
         buffer,
         rect.x.saturating_add(1),
         rect.y,
@@ -1163,51 +1168,97 @@ fn render_account_row(
             .fg(palette.subtext0)
             .add_modifier(Modifier::BOLD)
     };
-    x = put_segment(
+    let badge = if account.disabled {
+        Some("offline")
+    } else {
+        account.status_badge()
+    };
+    let badge_width = badge.map_or(0, |badge| display_width(badge).saturating_add(1));
+    put_segment(
         buffer,
         x.saturating_add(1),
         rect.y,
-        right,
+        right.saturating_sub(badge_width),
         account.label(),
         label_style,
     );
-    if account.disabled {
-        put_segment(
+    if let Some(badge) = badge {
+        put_right_text(
             buffer,
-            x.saturating_add(1),
+            rect,
             rect.y,
-            right,
-            "offline",
-            Style::default().fg(palette.red).add_modifier(Modifier::DIM),
+            badge,
+            Style::default()
+                .fg(palette.red)
+                .add_modifier(Modifier::BOLD),
         );
     }
-    if rect.height < 2 {
-        return;
+
+    let mut y = rect.y.saturating_add(1);
+    let bottom = rect.bottom();
+    let mut line = |label: &str, pct: Option<u8>, reset: Option<&str>| {
+        if y >= bottom {
+            return;
+        }
+        render_usage_line(
+            buffer,
+            rect.x.saturating_add(3),
+            y,
+            right,
+            label,
+            pct,
+            reset,
+            palette,
+        );
+        y = y.saturating_add(1);
+    };
+    line(
+        "5h",
+        account.five_hour_pct,
+        account.five_hour_reset.as_deref(),
+    );
+    line(
+        "7d",
+        account.seven_day_pct,
+        account.seven_day_reset.as_deref(),
+    );
+    for (name, pct, reset) in &account.scoped {
+        line(name, *pct, reset.as_deref());
     }
-    let y = rect.y.saturating_add(1);
+}
+
+/// One usage window: `5h ▰▰▱▱▱  38%  ↻4h 55m`.
+#[allow(clippy::too_many_arguments)] // a flat draw helper; a struct would only rename the args
+fn render_usage_line(
+    buffer: &mut Buffer,
+    x: u16,
+    y: u16,
+    right: u16,
+    label: &str,
+    pct: Option<u8>,
+    reset: Option<&str>,
+    palette: &Palette,
+) {
     let dim = Style::default().fg(palette.overlay0);
     let value = Style::default().fg(palette.subtext0);
-    let pct_text = |pct: Option<u8>| match pct {
+    let pct_text = match pct {
         Some(pct) => format!("{pct:>3}%"),
         None => "  --".to_string(),
     };
-    let mut x = put_segment(buffer, rect.x.saturating_add(3), y, right, "5h ", dim);
+    // Window labels are padded so the bars line up across 5h / 7d / model rows.
+    let label_text = format!("{label:<5} ");
+    let mut x = put_segment(buffer, x, y, right, &label_text, dim);
     x = put_segment(
         buffer,
         x,
         y,
         right,
-        &super::super::accounts::usage_bar(account.five_hour_pct),
-        Style::default().fg(usage_color(account.five_hour_pct, palette)),
+        &super::super::accounts::usage_bar(pct),
+        Style::default().fg(usage_color(pct, palette)),
     );
-    x = put_segment(buffer, x, y, right, &pct_text(account.five_hour_pct), value);
-    x = put_segment(buffer, x, y, right, "  7d ", dim);
-    put_segment(
-        buffer,
-        x,
-        y,
-        right,
-        pct_text(account.seven_day_pct).trim_start(),
-        Style::default().fg(usage_color(account.seven_day_pct, palette)),
-    );
+    x = put_segment(buffer, x, y, right, &pct_text, value);
+    if let Some(reset) = reset {
+        x = put_segment(buffer, x, y, right, "  ↻", dim);
+        put_segment(buffer, x, y, right, reset, dim);
+    }
 }

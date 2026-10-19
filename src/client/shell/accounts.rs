@@ -28,9 +28,33 @@ pub(crate) struct ClientAccount {
     pub(crate) five_hour_pct: Option<u8>,
     /// Seven-day window usage, 0–100.
     pub(crate) seven_day_pct: Option<u8>,
+    /// Time left until the five-hour window resets, as the tool prints it ("4h 55m").
+    pub(crate) five_hour_reset: Option<String>,
+    /// Time left until the seven-day window resets.
+    pub(crate) seven_day_reset: Option<String>,
+    /// Per-model windows: (label, pct, reset countdown).
+    pub(crate) scoped: Vec<(String, Option<u8>, Option<String>)>,
+    /// Tool-reported status other than "ok", e.g. "relogin_required".
+    pub(crate) status: Option<String>,
 }
 
 impl ClientAccount {
+    /// Sidebar lines this account needs: title, 5h, 7d, one per model window.
+    pub(crate) fn line_count(&self) -> usize {
+        3 + self.scoped.len()
+    }
+
+    /// Short badge for a non-ok tool status.
+    pub(crate) fn status_badge(&self) -> Option<&'static str> {
+        match self.status.as_deref()? {
+            "ok" => None,
+            "relogin_required" | "relogin" | "expired" => Some("relogin"),
+            "rate_limited" | "limited" => Some("limited"),
+            "error" | "fetch_failed" => Some("error"),
+            _ => Some("!"),
+        }
+    }
+
     /// Alias when set, otherwise the mailbox part of the email.
     pub(crate) fn label(&self) -> &str {
         if let Some(alias) = self.alias.as_deref().filter(|alias| !alias.is_empty()) {
@@ -244,21 +268,55 @@ pub(crate) fn parse_accounts_json(text: &str) -> AccountsPollResult {
             .get("usage")
             .filter(|usage| usage.is_object())
             .or_else(|| account.get("lastGoodUsage"));
-        let window_pct = |name: &str| {
-            usage
-                .and_then(|usage| usage.get(name))
-                .and_then(|window| window.get("pct").or_else(|| window.get("utilization")))
+        let pct_of = |window: &serde_json::Value| {
+            window
+                .get("pct")
+                .or_else(|| window.get("utilization"))
                 .and_then(|pct| pct.as_f64())
                 .map(normalize_pct)
         };
+        let reset_of = |window: &serde_json::Value| {
+            window
+                .get("countdown")
+                .and_then(|v| v.as_str())
+                .map(str::trim)
+                .filter(|v| !v.is_empty())
+                .map(str::to_string)
+        };
+        let window = |name: &str| usage.and_then(|usage| usage.get(name));
+        let scoped = usage
+            .and_then(|usage| usage.get("scoped"))
+            .and_then(|v| v.as_array())
+            .map(|entries| {
+                entries
+                    .iter()
+                    .map(|entry| {
+                        let name = entry
+                            .get("name")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("model")
+                            .to_string();
+                        (name, pct_of(entry), reset_of(entry))
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        let status = account
+            .get("usageStatus")
+            .and_then(|v| v.as_str())
+            .map(str::to_string);
         parsed.push(ClientAccount {
             number,
             email,
             alias,
             active,
             disabled,
-            five_hour_pct: window_pct("fiveHour"),
-            seven_day_pct: window_pct("sevenDay"),
+            five_hour_pct: window("fiveHour").and_then(pct_of),
+            seven_day_pct: window("sevenDay").and_then(pct_of),
+            five_hour_reset: window("fiveHour").and_then(reset_of),
+            seven_day_reset: window("sevenDay").and_then(reset_of),
+            scoped,
+            status,
         });
     }
     Ok(parsed)
@@ -267,11 +325,6 @@ pub(crate) fn parse_accounts_json(text: &str) -> AccountsPollResult {
 /// cswap reports percentages; a fraction in `0..=1` with a fractional part is
 /// treated as a ratio so both spellings land on the same 0–100 scale.
 fn normalize_pct(value: f64) -> u8 {
-    let value = if (0.0..=1.0).contains(&value) && value.fract() != 0.0 {
-        value * 100.0
-    } else {
-        value
-    };
     value.round().clamp(0.0, 100.0) as u8
 }
 
@@ -297,7 +350,7 @@ mod tests {
         let text = r#"warming up
 {"schemaVersion":1,"activeAccountNumber":1,"accounts":[
   {"number":1,"email":"work@plurio.ai","active":true,"usage":{"fiveHour":{"pct":2},"sevenDay":{"pct":46}}},
-  {"number":2,"email":"me@proton.me","alias":"personal","active":false,"disabled":true,"usage":{"fiveHour":{"pct":0.31},"sevenDay":{"pct":0.21}}}
+  {"number":2,"email":"me@proton.me","alias":"personal","active":false,"disabled":true,"usageStatus":"relogin_required","usage":null,"lastGoodUsage":{"fiveHour":{"pct":31},"sevenDay":{"pct":21,"countdown":"2d 1h"},"scoped":[{"name":"Fable","pct":17,"countdown":"2d 1h"}]}}
 ]}"#;
         let accounts = parse_accounts_json(text).unwrap();
         assert_eq!(accounts.len(), 2);
@@ -308,6 +361,13 @@ mod tests {
         assert!(accounts[1].disabled);
         assert_eq!(accounts[1].five_hour_pct, Some(31));
         assert_eq!(accounts[1].seven_day_pct, Some(21));
+        assert_eq!(accounts[1].seven_day_reset.as_deref(), Some("2d 1h"));
+        assert_eq!(accounts[1].scoped.len(), 1);
+        assert_eq!(accounts[1].scoped[0].0, "Fable");
+        assert_eq!(accounts[1].scoped[0].1, Some(17));
+        assert_eq!(accounts[1].status_badge(), Some("relogin"));
+        assert_eq!(accounts[1].line_count(), 4);
+        assert_eq!(accounts[0].status_badge(), None);
     }
 
     #[test]
