@@ -39,7 +39,7 @@ jobs:
           built_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           build_id="$day-$short_sha"
           base_version="$(grep -m1 '^version' Cargo.toml | sed 's/.*"\(.*\)"/\1/')"
-          protocol="$(grep -m1 'pub const PROTOCOL_VERSION: u32' src/protocol/wire.rs | sed 's/[^0-9]//g')"
+          protocol="$(grep -m1 'pub const PROTOCOL_VERSION: u32' src/protocol/wire.rs | sed 's/.*= *\([0-9]*\);.*/\1/')"
           {
             echo "build_id=$build_id"
             echo "tag=punk-$build_id"
