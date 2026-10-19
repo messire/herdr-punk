@@ -464,6 +464,9 @@ impl Default for AgentsSidebarConfig {
 pub struct SpacesSidebarConfig {
     #[serde(deserialize_with = "deserialize_sidebar_rows")]
     pub rows: SpaceSidebarRows,
+    /// Row layout for indented worktree children. Empty means use `rows`.
+    #[serde(deserialize_with = "deserialize_sidebar_rows")]
+    pub indented_rows: SpaceSidebarRows,
     pub row_gap: u16,
 }
 
@@ -474,6 +477,7 @@ impl Default for SpacesSidebarConfig {
                 vec![SpaceSidebarToken::StateIcon, SpaceSidebarToken::Workspace],
                 vec![SpaceSidebarToken::Branch, SpaceSidebarToken::GitStatus],
             ],
+            indented_rows: Vec::new(),
             row_gap: DEFAULT_SIDEBAR_ROW_GAP,
         }
     }

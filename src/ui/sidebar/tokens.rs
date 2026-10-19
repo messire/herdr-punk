@@ -136,9 +136,12 @@ pub(crate) fn space_rows(
     config: &SpacesSidebarConfig,
     context: SpaceTokenContext<'_>,
 ) -> Vec<Vec<ResolvedToken>> {
-    config
-        .rows
-        .iter()
+    let rows = if context.suppress_git_details && !config.indented_rows.is_empty() {
+        &config.indented_rows
+    } else {
+        &config.rows
+    };
+    rows.iter()
         .filter_map(|row| {
             let resolved = row
                 .iter()
