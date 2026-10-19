@@ -2142,13 +2142,34 @@ fn pane_shell_command_builder_for_target(
         cmd.args(windows_login_shell_args(&shell));
     }
     if uses_windows_powershell_pane_shell_for_target(shell_config, target) {
-        cmd.args([
-            "-NoExit",
-            "-Command",
-            WINDOWS_POWERSHELL_SHELL_INTEGRATION_COMMAND,
-        ]);
+        cmd.args(["-NoExit", "-Command", &windows_powershell_pane_command()]);
     }
     Ok(cmd)
+}
+
+static WINDOWS_POWERSHELL_STARTUP_COMMAND: std::sync::RwLock<String> =
+    std::sync::RwLock::new(String::new());
+
+/// Set the user statement appended to the PowerShell pane start command
+/// (`[terminal] powershell_startup_command`). Called on config load and reload.
+pub(crate) fn set_windows_powershell_startup_command(command: &str) {
+    if let Ok(mut slot) = WINDOWS_POWERSHELL_STARTUP_COMMAND.write() {
+        *slot = command.trim().to_string();
+    }
+}
+
+/// Full `-Command` payload for PowerShell panes: Herdr's prompt integration,
+/// then the optional user startup statement. Both run in the pane's own session.
+fn windows_powershell_pane_command() -> String {
+    let startup = WINDOWS_POWERSHELL_STARTUP_COMMAND
+        .read()
+        .map(|slot| slot.clone())
+        .unwrap_or_default();
+    if startup.is_empty() {
+        WINDOWS_POWERSHELL_SHELL_INTEGRATION_COMMAND.to_string()
+    } else {
+        format!("{WINDOWS_POWERSHELL_SHELL_INTEGRATION_COMMAND}; {startup}")
+    }
 }
 
 fn pane_shell_command_builder(shell_config: PaneShellConfig<'_>) -> io::Result<CommandBuilder> {

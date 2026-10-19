@@ -394,6 +394,9 @@ impl App {
     ) -> std::io::Result<Self> {
         let prefix_keys = config.prefix_keys();
         crate::kitty_graphics::set_enabled(config.kitty_graphics_enabled());
+        crate::pane::set_windows_powershell_startup_command(
+            &config.terminal.powershell_startup_command,
+        );
         let (event_tx, event_rx) = mpsc::channel::<AppEvent>(APP_EVENT_CHANNEL_CAPACITY);
         let render_notify = Arc::new(Notify::new());
         let render_dirty = Arc::new(crate::render_signal::RenderSignal::new());
@@ -1001,6 +1004,9 @@ impl App {
         if !invalid_section("terminal") {
             self.state.default_shell = config.terminal.default_shell.clone();
             self.state.shell_mode = config.terminal.shell_mode;
+            crate::pane::set_windows_powershell_startup_command(
+                &config.terminal.powershell_startup_command,
+            );
             self.state.new_terminal_cwd = config.terminal.new_cwd.clone();
         }
 

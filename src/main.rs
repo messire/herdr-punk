@@ -112,6 +112,10 @@ const DEFAULT_CONFIG: &str = r##"# herdr configuration
 # "auto" uses login shells on macOS and keeps the current behavior elsewhere.
 # shell_mode = "auto"
 
+# Windows only: PowerShell statement run once when a new pane shell starts,
+# after Herdr's prompt integration. Useful for a banner.
+# powershell_startup_command = ""
+
 # CWD policy for new panes, tabs, and workspaces when no explicit --cwd is provided.
 # Use "follow" to inherit the source pane/workspace, "home" for $HOME,
 # "current" for Herdr's process directory, or a fixed path such as "~/Projects".

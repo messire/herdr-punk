@@ -260,6 +260,9 @@ pub struct TerminalConfig {
     pub new_cwd: NewTerminalCwdConfig,
     /// Render Kitty graphics in compatible outer terminals. Default: true.
     pub kitty_graphics: Option<bool>,
+    /// PowerShell statement run once when a new interactive pane shell starts on
+    /// Windows (after Herdr's prompt integration), e.g. a banner script. Empty by default.
+    pub powershell_startup_command: String,
 }
 
 #[derive(Debug, Deserialize)]

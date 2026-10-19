@@ -526,6 +526,12 @@
           ]
         },
         {
+          "key": "terminal.powershell_startup_command",
+          "type": "string",
+          "default": "\"\"",
+          "description": "Windows only. PowerShell statement run once when a new interactive pane shell starts, after Herdr's prompt integration (for example a banner script). Empty runs nothing."
+        },
+        {
           "key": "terminal.new_cwd",
           "type": "enum",
           "default": "\"follow\"",
