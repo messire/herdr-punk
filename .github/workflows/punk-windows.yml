@@ -64,7 +64,31 @@ jobs:
           HERDR_BUILD_CHANNEL: preview
           HERDR_BUILD_ID: ${{ steps.plan.outputs.build_id }}
           HERDR_BUILD_COMMIT: ${{ github.sha }}
-        run: cargo build --release --locked --target x86_64-pc-windows-msvc
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo build --release --locked --target x86_64-pc-windows-msvc 2>&1 | tee build.log
+
+      - name: Surface compiler errors as annotations
+        if: failure()
+        shell: bash
+        run: |
+          # Raw job logs are not reachable from every network; annotations are.
+          python3 - <<'PY'
+          import re
+          log = open("build.log", encoding="utf-8", errors="replace").read()
+          blocks = re.split(r"\n(?=(?:error|warning)(?:\[E\d+\])?: )", log)
+          for block in blocks:
+              if not block.startswith("error"):
+                  continue
+              head = block.splitlines()[0]
+              loc = re.search(r"--> ([^:\n]+):(\d+):(\d+)", block)
+              body = "%0A".join(block.splitlines()[:14])
+              if loc:
+                  print(f"::error file={loc.group(1)},line={loc.group(2)},col={loc.group(3)},title={head[:120]}::{body}")
+              else:
+                  print(f"::error title={head[:120]}::{body}")
+          PY
 
       - name: Package
         id: package

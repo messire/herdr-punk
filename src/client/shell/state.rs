@@ -1085,6 +1085,10 @@ impl ClientShellState {
                 .or_default()
                 .extend(saved.collapsed_groups);
         }
+        let glitch = super::glitch::GlitchState::new(
+            config.tab_bar_glitch.clone(),
+            std::time::Instant::now(),
+        );
         Self {
             machine_diagnostics: Default::default(),
             config,
@@ -1118,10 +1122,7 @@ impl ClientShellState {
                 .filter_map(|key| SidebarSection::from_key(key))
                 .collect(),
             accounts: Default::default(),
-            glitch: super::glitch::GlitchState::new(
-                config.tab_bar_glitch.clone(),
-                std::time::Instant::now(),
-            ),
+            glitch,
             accounts_control: None,
             account_scroll: 0,
             last_account_click: None,
