@@ -1143,6 +1143,60 @@
           "description": "Client-side styling rules for right-aligned tab bar entries, matched against each entry's text with equals, contains or starts_with (plus ignore_case). Rules accept fg, bold, dim and hide; the first match wins."
         },
         {
+          "key": "ui.tab_bar_glitch.enabled",
+          "type": "bool",
+          "default": "false",
+          "description": "Animate signal interference on a right-side tab bar entry (client-side; no extra processes)."
+        },
+        {
+          "key": "ui.tab_bar_glitch.matches",
+          "type": "string",
+          "default": "\"\"",
+          "description": "Entries whose text contains this string are animated. Empty animates nothing."
+        },
+        {
+          "key": "ui.tab_bar_glitch.idle_min_ms",
+          "type": "integer",
+          "default": "3000",
+          "description": "Shortest pause between interference bursts, in milliseconds."
+        },
+        {
+          "key": "ui.tab_bar_glitch.idle_max_ms",
+          "type": "integer",
+          "default": "6000",
+          "description": "Longest pause between interference bursts, in milliseconds."
+        },
+        {
+          "key": "ui.tab_bar_glitch.frames_min",
+          "type": "integer",
+          "default": "6",
+          "description": "Fewest frames in one burst."
+        },
+        {
+          "key": "ui.tab_bar_glitch.frames_max",
+          "type": "integer",
+          "default": "10",
+          "description": "Most frames in one burst."
+        },
+        {
+          "key": "ui.tab_bar_glitch.frame_ms",
+          "type": "integer",
+          "default": "90",
+          "description": "How long each burst frame stays on screen, in milliseconds (30-2000)."
+        },
+        {
+          "key": "ui.tab_bar_glitch.noise_fg",
+          "type": "color",
+          "default": "unset",
+          "description": "Foreground for heavily corrupted frames. Unset keeps the entry's own style."
+        },
+        {
+          "key": "ui.tab_bar_glitch.noise",
+          "type": "string",
+          "default": "\"▓▒░█▚▞╳▌▐\"",
+          "description": "Single-cell glyphs used as noise."
+        },
+        {
           "key": "ui.window_title",
           "type": "string",
           "default": "\"{hostname}: {workspace}\"",

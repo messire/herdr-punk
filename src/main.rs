@@ -329,6 +329,14 @@ const DEFAULT_CONFIG: &str = r##"# herdr configuration
 # tab_bar_right_separator = " "
 # Style right-side entries by text (first match wins):
 # tab_bar_right_styles = [{ contains = "AFTER LIFE", fg = "#FCEE0A", bold = true }]
+# Client-side interference animation for one right-side entry:
+# [ui.tab_bar_glitch]
+# enabled = true
+# matches = "AFTER LIFE"
+# idle_min_ms = 3000
+# idle_max_ms = 6000
+# frame_ms = 90
+# noise_fg = "#FF2B4A"
 
 # Title Herdr writes to the terminal it runs in, which is what window managers
 # show in title, tab, and group bars. Tokens are {hostname}, {workspace}, {tab},

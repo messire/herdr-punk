@@ -22,6 +22,7 @@ pub(crate) struct ClientShellConfig {
     pub(super) tab_bar_position: TabBarPositionConfig,
     pub(super) hide_tab_bar_when_single_tab: bool,
     pub(super) tab_bar_right_styles: Vec<crate::config::SidebarTokenRule>,
+    pub(super) tab_bar_glitch: crate::config::TabBarGlitchConfig,
     pub(super) spaces: SpacesSidebarConfig,
     pub(super) agents: crate::config::AgentsSidebarConfig,
     pub(super) accounts: crate::config::AccountsConfig,
@@ -932,6 +933,8 @@ pub(crate) struct ClientShellState {
     /// Folded sidebar sections; persisted with the other chrome preferences.
     pub(super) collapsed_sections: HashSet<SidebarSection>,
     pub(super) accounts: super::accounts::ClientAccountsState,
+    /// Tab bar interference animation (client-only presentation state).
+    pub(super) glitch: super::glitch::GlitchState,
     pub(super) accounts_control: Option<std::sync::mpsc::Sender<super::accounts::AccountsRequest>>,
     pub(super) account_scroll: usize,
     pub(super) last_account_click: Option<(std::time::Instant, usize)>,
@@ -1115,6 +1118,10 @@ impl ClientShellState {
                 .filter_map(|key| SidebarSection::from_key(key))
                 .collect(),
             accounts: Default::default(),
+            glitch: super::glitch::GlitchState::new(
+                config.tab_bar_glitch.clone(),
+                std::time::Instant::now(),
+            ),
             accounts_control: None,
             account_scroll: 0,
             last_account_click: None,
@@ -1945,9 +1952,15 @@ impl ClientShellState {
         self.selection_autoscroll_deadline
             .into_iter()
             .chain(self.selection_repaint_deadline)
+            .chain(self.glitch.deadline())
             .min()
             .map(|deadline| deadline.saturating_duration_since(now).min(default))
             .unwrap_or(default)
+    }
+
+    /// Advance the tab bar interference animation; true when a repaint is due.
+    pub(crate) fn tick_glitch(&mut self, now: std::time::Instant) -> bool {
+        self.glitch.tick(now)
     }
 
     pub(crate) fn invalidate_pane_surface(&mut self) {

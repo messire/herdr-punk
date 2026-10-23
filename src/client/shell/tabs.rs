@@ -9,6 +9,7 @@ pub(crate) fn render_tab_bar(
     area: Rect,
     snapshot: &ClientShellSnapshot,
     config: &ClientShellConfig,
+    glitch: &super::glitch::GlitchState,
     tab_scroll: &mut usize,
     reveal_focused_tab: &mut bool,
     tab_drag_insert_index: Option<usize>,
@@ -220,7 +221,7 @@ pub(crate) fn render_tab_bar(
             );
         }
     }
-    render_tab_bar_status(buffer, area, snapshot, config);
+    render_tab_bar_status(buffer, area, snapshot, config, glitch);
 }
 
 pub(crate) fn tab_bar_status_width(snapshot: &ClientShellSnapshot) -> u16 {
@@ -259,6 +260,7 @@ fn render_tab_bar_status(
     area: Rect,
     snapshot: &ClientShellSnapshot,
     config: &ClientShellConfig,
+    glitch: &super::glitch::GlitchState,
 ) {
     let palette = &config.palette;
     let Some(status) = tab_bar_status_area(snapshot, area) else {
@@ -278,6 +280,12 @@ fn render_tab_bar_status(
             );
             x = x.saturating_add(separator_width);
         }
+        let glitched = (!segment.accent)
+            .then(|| glitch.render(&segment.text))
+            .flatten();
+        let text = glitched
+            .as_ref()
+            .map_or(segment.text.as_str(), |(text, _)| text.as_str());
         let width = display_width(&segment.text);
         let style = if segment.accent {
             Style::default()
@@ -286,13 +294,18 @@ fn render_tab_bar_status(
                 .add_modifier(Modifier::BOLD)
         } else {
             let base = Style::default().fg(palette.overlay1).bg(palette.panel_bg);
-            match crate::config::rule_style_for(&config.tab_bar_right_styles, &segment.text) {
-                Some(patch) => crate::ui::apply_token_style(base, patch),
-                // `hide = true`: the server already reserved the width, so blank it out.
-                None => base.fg(palette.panel_bg),
+            let styled =
+                match crate::config::rule_style_for(&config.tab_bar_right_styles, &segment.text) {
+                    Some(patch) => crate::ui::apply_token_style(base, patch),
+                    // `hide = true`: the server already reserved the width, so blank it out.
+                    None => base.fg(palette.panel_bg),
+                };
+            match (&glitched, config.tab_bar_glitch.noise_fg) {
+                (Some((_, true)), Some(noise_fg)) => styled.fg(noise_fg.ratatui()),
+                _ => styled,
             }
         };
-        put_text(buffer, x, area.y, width, &segment.text, style);
+        put_text(buffer, x, area.y, width, text, style);
         x = x.saturating_add(width);
     }
 }

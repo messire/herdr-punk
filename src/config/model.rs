@@ -5,7 +5,8 @@ use serde::{de, Deserialize, Deserializer, Serialize};
 
 use super::{
     accounts::AccountsConfig, ActionKeybinds, BindingConfig, CommandKeybindConfig, IndexedKeybind,
-    Keybinds, SidebarConfig, SidebarTokenRule, SoundConfig, TabBarRightEntryConfig, ThemeConfig,
+    Keybinds, SidebarConfig, SidebarTokenRule, SoundConfig, TabBarGlitchConfig,
+    TabBarRightEntryConfig, ThemeConfig,
     DEFAULT_MOBILE_WIDTH_THRESHOLD, DEFAULT_MOUSE_SCROLL_LINES, DEFAULT_SCROLLBACK_LIMIT_BYTES,
 };
 
@@ -995,6 +996,8 @@ pub struct UiConfig {
     /// entry's text (`equals`, `contains`, `starts_with`, with `fg`, `bold`, `dim`,
     /// `hide`). The first matching rule wins. Empty by default.
     pub tab_bar_right_styles: Vec<SidebarTokenRule>,
+    /// Client-side interference animation for a right-side tab bar entry.
+    pub tab_bar_glitch: TabBarGlitchConfig,
     /// Format for the outer terminal window title. Empty leaves the title alone.
     /// Default: "{hostname}: {workspace}".
     pub window_title: String,
@@ -1232,6 +1235,7 @@ impl Default for UiConfig {
             tab_bar_right: Vec::new(),
             tab_bar_right_separator: " ".into(),
             tab_bar_right_styles: Vec::new(),
+            tab_bar_glitch: TabBarGlitchConfig::default(),
             window_title: super::window_title::default_window_title(),
             agent_panel_sort: AgentPanelSortConfig::Spaces,
             _legacy_agent_panel_scope: None,

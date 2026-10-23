@@ -96,6 +96,10 @@ impl ClientShellState {
                     self.config.agent_panel_sort = agent_panel_sort;
                 }
                 self.reconfigure_accounts();
+                self.glitch.reconfigure(
+                    self.config.tab_bar_glitch.clone(),
+                    std::time::Instant::now(),
+                );
                 self.set_local_config_diagnostic(self.config.local_config_diagnostic(&diagnostics));
                 if let Some(snapshot) = self.snapshot.as_deref() {
                     let profile = snapshot.server_keybindings_toml.clone();
@@ -135,6 +139,7 @@ impl ClientShellConfig {
             tab_bar_position: config.ui.tab_bar_position,
             hide_tab_bar_when_single_tab: config.ui.hide_tab_bar_when_single_tab,
             tab_bar_right_styles: config.ui.tab_bar_right_styles.clone(),
+            tab_bar_glitch: config.ui.tab_bar_glitch.clone(),
             spaces: config.ui.sidebar.spaces.clone(),
             agents: config.ui.sidebar.agents.clone(),
             accounts: config.ui.accounts.clone(),
@@ -370,6 +375,7 @@ impl ClientShellConfig {
                 self.tab_bar_position = ui.tab_bar_position;
                 self.hide_tab_bar_when_single_tab = ui.hide_tab_bar_when_single_tab;
                 self.tab_bar_right_styles = ui.tab_bar_right_styles.clone();
+                self.tab_bar_glitch = ui.tab_bar_glitch.clone();
                 self.spaces = ui.sidebar.spaces.clone();
                 self.agents = ui.sidebar.agents.clone();
                 self.accounts = ui.accounts.clone();
