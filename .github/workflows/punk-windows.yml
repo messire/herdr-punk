@@ -69,6 +69,15 @@ jobs:
           set -o pipefail
           cargo build --release --locked --target x86_64-pc-windows-msvc 2>&1 | tee build.log
 
+      - name: Unit tests for fork-only API behavior
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo test --release --locked --target x86_64-pc-windows-msvc --lib -- \
+            app::output_events \
+            config::keybinds::tests::parse_navigation_keys \
+            api::schema 2>&1 | tee -a build.log
+
       - name: Surface compiler errors as annotations
         if: failure()
         shell: bash
