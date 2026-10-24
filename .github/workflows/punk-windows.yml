@@ -125,10 +125,22 @@ jobs:
           set -euo pipefail
           tag="${{ steps.plan.outputs.tag }}"
           subject="$(git log -1 --format=%s)"
-          gh release create "$tag" herdr-windows-x86_64.zip BUILD_INFO.txt \
-            --repo "$GITHUB_REPOSITORY" --prerelease --target "$GITHUB_SHA" \
-            --title "herdr-punk ${{ steps.plan.outputs.base_version }}-preview.${{ steps.plan.outputs.build_id }}" \
-            --notes "$subject"$'\n\n'"Fork build from $GITHUB_SHA."
+          title="herdr-punk ${{ steps.plan.outputs.base_version }}-preview.${{ steps.plan.outputs.build_id }}"
+          notes="$subject"$'\n\n'"Fork build from $GITHUB_SHA."
+          # Raw job logs are not reachable from every network: surface the gh
+          # error as an annotation, and tolerate a release that already exists.
+          if ! out="$(gh release create "$tag" herdr-windows-x86_64.zip BUILD_INFO.txt \
+              --repo "$GITHUB_REPOSITORY" --prerelease --target "$GITHUB_SHA" \
+              --title "$title" --notes "$notes" 2>&1)"; then
+            echo "::warning title=gh release create failed::${out//$'\n'/ }"
+            if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              gh release upload "$tag" herdr-windows-x86_64.zip BUILD_INFO.txt \
+                --repo "$GITHUB_REPOSITORY" --clobber
+            else
+              echo "::error title=Publish GitHub prerelease::${out//$'\n'/ }"
+              exit 1
+            fi
+          fi
 
       - name: Write update manifests
         shell: bash
