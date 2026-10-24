@@ -4,10 +4,7 @@ pub use rules::SidebarTokenRule;
 
 /// First matching rule's style for `value`, starting from the default style.
 /// `None` means a matching rule asked to hide the value.
-pub(crate) fn rule_style_for(
-    rules: &[SidebarTokenRule],
-    value: &str,
-) -> Option<SidebarTokenStyle> {
+pub(crate) fn rule_style_for(rules: &[SidebarTokenRule], value: &str) -> Option<SidebarTokenStyle> {
     rules::matching_style(rules, SidebarTokenStyle::default(), value)
 }
 

@@ -1,10 +1,10 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
 mod accounts;
-mod glitch;
 mod actions;
 mod agent_sidebar;
 mod aggregate_navigation;
+mod glitch;
 mod machine_diagnostics;
 mod workspace_navigation;
 use workspace_navigation::{PendingWorkspaceHighlight, WorkspaceNavigationTarget};

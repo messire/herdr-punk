@@ -26,7 +26,9 @@ impl GlitchState {
     pub(crate) fn new(config: TabBarGlitchConfig, now: Instant) -> Self {
         let seed = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .map_or(0x9E37_79B9_7F4A_7C15, |d| d.as_nanos() as u64 ^ 0x9E37_79B9_7F4A_7C15);
+            .map_or(0x9E37_79B9_7F4A_7C15, |d| {
+                d.as_nanos() as u64 ^ 0x9E37_79B9_7F4A_7C15
+            });
         let mut state = Self {
             config,
             rng: seed | 1,

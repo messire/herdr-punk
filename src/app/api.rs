@@ -806,6 +806,51 @@ impl App {
         }
     }
 
+    /// Record PTY damage for the panes in `sources`; the matching
+    /// `pane.output_changed` events are emitted by [`Self::flush_output_events`]
+    /// after per-pane coalescing.
+    pub(crate) fn note_output_sources(
+        &mut self,
+        sources: &std::collections::HashSet<crate::layout::PaneId>,
+    ) {
+        for &pane_id in sources {
+            let Some((ws_idx, _)) = self.find_pane(pane_id) else {
+                self.output_events.forget(pane_id);
+                continue;
+            };
+            let Some(runtime) =
+                self.state
+                    .runtime_for_pane_in_workspace(&self.terminal_runtimes, ws_idx, pane_id)
+            else {
+                continue;
+            };
+            let revision = runtime.content_seq();
+            self.output_events.note(pane_id, revision);
+        }
+    }
+
+    /// Emit every due `pane.output_changed` event. Output events bypass plugin
+    /// hooks: they are high-volume and hooks are warning-only for this kind.
+    pub(crate) fn flush_output_events(&mut self, now: std::time::Instant) {
+        for (pane_id, revision) in self.output_events.due(now) {
+            let Some((ws_idx, _)) = self.find_pane(pane_id) else {
+                self.output_events.forget(pane_id);
+                continue;
+            };
+            let Some(public_pane_id) = self.public_pane_id(ws_idx, pane_id) else {
+                continue;
+            };
+            self.event_hub.push(crate::api::schema::EventEnvelope {
+                event: crate::api::schema::EventKind::PaneOutputChanged,
+                data: crate::api::schema::EventData::PaneOutputChanged {
+                    pane_id: public_pane_id,
+                    workspace_id: self.public_workspace_id(ws_idx),
+                    revision,
+                },
+            });
+        }
+    }
+
     pub(crate) fn emit_workspace_token_updated(&mut self, ws_idx: usize) {
         // Token updates bypass plugin hooks so a hook cannot refresh its own
         // token and recursively trigger workspace.updated.

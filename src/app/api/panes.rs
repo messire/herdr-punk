@@ -1544,7 +1544,7 @@ impl App {
                     source: params.source,
                     format: params.format,
                     text: snapshot.text,
-                    revision: 0,
+                    revision: pane.content_seq(),
                     truncated: snapshot.truncated,
                 },
             },

@@ -1323,6 +1323,12 @@ pub(crate) fn parse_key_combo(s: &str) -> Option<KeyCombo> {
         "right" => KeyCode::Right,
         "up" => KeyCode::Up,
         "down" => KeyCode::Down,
+        "home" => KeyCode::Home,
+        "end" => KeyCode::End,
+        "pageup" | "page_up" | "pgup" => KeyCode::PageUp,
+        "pagedown" | "page_down" | "pgdn" => KeyCode::PageDown,
+        "insert" | "ins" => KeyCode::Insert,
+        "delete" | "del" => KeyCode::Delete,
         "minus" => KeyCode::Char('-'),
         "comma" => KeyCode::Char(','),
         "period" => KeyCode::Char('.'),
@@ -1625,6 +1631,33 @@ prefix = "ö"
         assert_eq!(
             parse_key_combo("shift+tab"),
             Some((KeyCode::BackTab, KeyModifiers::empty()))
+        );
+    }
+
+    #[test]
+    fn parse_navigation_keys() {
+        for (name, code) in [
+            ("home", KeyCode::Home),
+            ("End", KeyCode::End),
+            ("pageup", KeyCode::PageUp),
+            ("page_down", KeyCode::PageDown),
+            ("pgdn", KeyCode::PageDown),
+            ("insert", KeyCode::Insert),
+            ("del", KeyCode::Delete),
+        ] {
+            assert_eq!(
+                parse_key_combo(name),
+                Some((code, KeyModifiers::empty())),
+                "{name}"
+            );
+        }
+        assert_eq!(
+            parse_key_combo("ctrl+home"),
+            Some((KeyCode::Home, KeyModifiers::CONTROL))
+        );
+        assert_eq!(
+            parse_key_combo("shift+delete"),
+            Some((KeyCode::Delete, KeyModifiers::SHIFT))
         );
     }
 

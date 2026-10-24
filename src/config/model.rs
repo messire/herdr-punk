@@ -6,8 +6,8 @@ use serde::{de, Deserialize, Deserializer, Serialize};
 use super::{
     accounts::AccountsConfig, ActionKeybinds, BindingConfig, CommandKeybindConfig, IndexedKeybind,
     Keybinds, SidebarConfig, SidebarTokenRule, SoundConfig, TabBarGlitchConfig,
-    TabBarRightEntryConfig, ThemeConfig,
-    DEFAULT_MOBILE_WIDTH_THRESHOLD, DEFAULT_MOUSE_SCROLL_LINES, DEFAULT_SCROLLBACK_LIMIT_BYTES,
+    TabBarRightEntryConfig, ThemeConfig, DEFAULT_MOBILE_WIDTH_THRESHOLD,
+    DEFAULT_MOUSE_SCROLL_LINES, DEFAULT_SCROLLBACK_LIMIT_BYTES,
 };
 
 pub const MAX_TOAST_DELAY_SECONDS: u64 = 3600;

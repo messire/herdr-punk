@@ -555,6 +555,8 @@ impl HeadlessServer {
                 let render_request = self.app.render_dirty.take();
                 let pty_dirty = !render_request.pty_sources.is_empty();
                 if pty_dirty {
+                    self.app.note_output_sources(&render_request.pty_sources);
+                    self.app.flush_output_events(now);
                     crate::render_prof::event("render.attempt.pty_dirty");
                     crate::render_prof::counter(
                         "render.attempt.pty_sources",
@@ -606,7 +608,8 @@ impl HeadlessServer {
                 continue;
             }
 
-            // 8. Wait for next event.
+            // 8. Flush coalesced output events, then wait for the next event.
+            self.app.flush_output_events(now);
             let next_deadline = self
                 .app
                 .next_headless_loop_deadline_with_git_refresh(
@@ -622,6 +625,13 @@ impl HeadlessServer {
                 .map(|pending| pending.next_deadline())
                 .fold(next_deadline, |deadline, pending| {
                     Some(deadline.map_or(pending, |current| current.min(pending)))
+                });
+            let next_deadline = self
+                .app
+                .output_events
+                .next_deadline()
+                .map_or(next_deadline, |pending| {
+                    Some(next_deadline.map_or(pending, |current| current.min(pending)))
                 });
             let event = {
                 tokio::select! {

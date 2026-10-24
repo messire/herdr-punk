@@ -19,6 +19,7 @@ mod creation;
 mod custom_commands;
 mod git_refresh;
 mod ids;
+mod output_events;
 mod popup;
 mod runtime;
 mod session;
@@ -160,6 +161,8 @@ pub struct App {
     pub(crate) last_presentation_at: Option<Instant>,
     pub render_notify: Arc<Notify>,
     pub(crate) render_dirty: Arc<crate::render_signal::RenderSignal>,
+    /// Coalesces PTY damage into `pane.output_changed` API events.
+    pub(crate) output_events: output_events::OutputEventTracker,
     pub(crate) full_redraw_pending: bool,
     pub(crate) overlay_panes: HashMap<crate::layout::PaneId, OverlayPaneState>,
     pub(crate) config_reloaded_from_disk: bool,
@@ -677,6 +680,7 @@ impl App {
             policy,
             render_notify,
             render_dirty,
+            output_events: output_events::OutputEventTracker::default(),
             full_redraw_pending: false,
             overlay_panes: HashMap::new(),
             config_reloaded_from_disk: false,
