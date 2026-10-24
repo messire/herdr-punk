@@ -62,6 +62,8 @@ pub enum Subscription {
     PaneExited {},
     #[serde(rename = "pane.agent_detected")]
     PaneAgentDetected {},
+    #[serde(rename = "pane.output_changed")]
+    PaneOutputChanged {},
     #[serde(rename = "pane.output_matched")]
     PaneOutputMatched {
         pane_id: String,

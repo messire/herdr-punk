@@ -158,6 +158,9 @@ impl ActiveSubscription {
             Subscription::PaneAgentDetected {} => {
                 Ok(event_subscription(EventKind::PaneAgentDetected))
             }
+            Subscription::PaneOutputChanged {} => {
+                Ok(event_subscription(EventKind::PaneOutputChanged))
+            }
             Subscription::LayoutUpdated {} => Ok(event_subscription(EventKind::LayoutUpdated)),
             Subscription::PaneOutputMatched {
                 pane_id,
@@ -681,6 +684,43 @@ mod tests {
                 state_labels: HashMap::new(),
             },
         }
+    }
+
+    #[test]
+    fn pane_output_changed_subscription_delivers_coalesced_revisions() {
+        let event_hub = EventHub::default();
+        let event_start_sequence = event_hub.current_sequence();
+        let (api_tx, _api_rx) = tokio::sync::mpsc::unbounded_channel();
+        let subscription: Subscription =
+            serde_json::from_value(serde_json::json!({ "type": "pane.output_changed" }))
+                .expect("pane.output_changed is a valid subscription name");
+        let mut subscription = ActiveSubscription::new(
+            subscription,
+            "test",
+            0,
+            &api_tx,
+            &event_hub,
+            event_start_sequence,
+        )
+        .expect("pane output subscription");
+        assert!(subscription.poll(&api_tx, &event_hub).is_none());
+
+        event_hub.push(workspace_focused_event("ignored"));
+        event_hub.push(EventEnvelope {
+            event: EventKind::PaneOutputChanged,
+            data: EventData::PaneOutputChanged {
+                pane_id: "pane_1".into(),
+                workspace_id: "workspace_1".into(),
+                revision: 42,
+            },
+        });
+        let event = subscription
+            .poll(&api_tx, &event_hub)
+            .expect("output event");
+        assert_eq!(event["event"], "pane_output_changed");
+        assert_eq!(event["data"]["pane_id"], "pane_1");
+        assert_eq!(event["data"]["revision"], 42);
+        assert!(subscription.poll(&api_tx, &event_hub).is_none());
     }
 
     fn workspace_focused_event(workspace_id: &str) -> EventEnvelope {

@@ -4180,6 +4180,18 @@
             },
             {
               "properties": {
+                "type": {
+                  "const": "pane.output_changed",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
                 "lines": {
                   "format": "uint32",
                   "minimum": 0,

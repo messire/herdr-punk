@@ -822,8 +822,12 @@ Tab event subscriptions include `tab.created`, `tab.closed`, `tab.focused`,
 `workspace_id`, requested `insert_index`, and updated ordered `tabs` list for
 that workspace.
 Pane event subscriptions include `pane.created`, `pane.updated`, `pane.closed`, `pane.focused`,
-`pane.moved`, `pane.exited`, `pane.agent_detected`,
+`pane.moved`, `pane.exited`, `pane.agent_detected`, `pane.output_changed`,
 `pane.output_matched`, `pane.agent_status_changed`, and `pane.scroll_changed`.
+`pane.output_changed` is emitted for every pane, coalesced to at most one event
+per pane per 100 ms, and carries the pane's content `revision`; the same counter
+is returned by `pane.read`, so a client can skip a read whose revision it has
+already rendered.
 `pane.focused` also reports manual pane selection changes from any client attached
 to this server. It does not move other clients' views, and its payload does not
 identify the client. Selecting an already-selected pane does not emit it again.
