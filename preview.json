@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "channel": "preview",
+  "build_id": "2026-10-24-30ba20c7b7a0",
+  "base_version": "0.9.5",
+  "commit": "30ba20c7b7a003a093ae23c04640ad8f29fa043a",
+  "built_at": "2026-10-24T12:26:29Z",
+  "protocol": 22,
+  "endpoint_generation": 1,
+  "notes": "## herdr-punk preview 2026-10-24-30ba20c7b7a0\n\n- ci: annotate release publish errors and tolerate an existing prerelease\n- feat: expose pane.output_changed as an events.subscribe subscription\n- ci: run output-event and key-name unit tests in the punk windows build\n- feat: emit coalesced pane.output_changed events and real pane.read revision\n- fix: build glitch state before moving config; annotate compiler errors in CI\n- feat: client-side interference animation for a tab bar entry (ui.tab_bar_glitch)\n- feat: run terminal.powershell_startup_command in new Windows panes\n- feat: style right-side tab bar entries with ui.tab_bar_right_styles\n- fix: folded agents section stays under the spaces content; drop reset glyph\n- feat: daemon theme with a pane ANSI palette\n- ci: read the protocol number, not every digit on the line\n- build: self-updating fork channel\n- feat: accounts section shows reset countdowns, model windows, and tool status\n- feat: separate row layout for indented worktree spaces\n- feat: tab_count token for space sidebar rows",
+  "assets": {
+    "windows-x86_64": {
+      "url": "https://github.com/messire/herdr-punk/releases/download/punk-2026-10-24-30ba20c7b7a0/herdr-windows-x86_64.zip",
+      "sha256": "b5910172d9e7df5df6c9c7d04dc7250c03fe152cd3d8c52f572aca26b21bb9e3",
+      "format": "zip"
+    }
+  },
+  "builds": {
+    "2026-10-24-30ba20c7b7a0": {
+      "base_version": "0.9.5",
+      "commit": "30ba20c7b7a003a093ae23c04640ad8f29fa043a",
+      "built_at": "2026-10-24T12:26:29Z",
+      "protocol": 22,
+      "endpoint_generation": 1,
+      "tag": "punk-2026-10-24-30ba20c7b7a0",
+      "assets": {
+        "windows-x86_64": {
+          "url": "https://github.com/messire/herdr-punk/releases/download/punk-2026-10-24-30ba20c7b7a0/herdr-windows-x86_64.zip",
+          "sha256": "b5910172d9e7df5df6c9c7d04dc7250c03fe152cd3d8c52f572aca26b21bb9e3",
+          "format": "zip"
+        }
+      }
+    }
+  }
+}
