@@ -735,6 +735,30 @@ pub struct PaneReadResult {
     pub text: String,
     pub revision: u64,
     pub truncated: bool,
+    /// Where the terminal cursor is, when the runtime knows. Present for every
+    /// source; `line` is only set for `recent` reads, in the coordinates of `text`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cursor: Option<PaneReadCursor>,
+    /// The application has switched to the alternate screen (a full-screen
+    /// program such as an editor or pager owns the viewport).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub alternate_screen: bool,
+}
+
+/// Terminal cursor reported with a `pane.read` snapshot.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct PaneReadCursor {
+    /// Zero-based index of the cursor's row among the lines of `text`, or
+    /// `null` when the snapshot's row origin is unknown (non-`recent` sources,
+    /// Windows fallback text). It may equal or exceed the number of lines in
+    /// `text` when the cursor sits on blank rows below the last content.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub line: Option<u64>,
+    /// Zero-based column within that row.
+    pub col: u16,
+    pub visible: bool,
+    /// DECSCUSR parameter (0–6); 0 is the terminal default.
+    pub shape: u8,
 }
 
 /// Inclusive display-cell columns on a pane's current viewport.

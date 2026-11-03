@@ -4555,6 +4555,8 @@ fn terminal_control_rejects_attach_during_alt_screen_read() {
                     text: String::new(),
                     revision: 0,
                     truncated: false,
+                    cursor: None,
+                    alternate_screen: false,
                 },
                 120,
                 false,

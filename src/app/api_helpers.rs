@@ -148,18 +148,66 @@ pub(crate) fn limit_snapshot_lines(
         return crate::pane::TerminalReadSnapshot {
             text,
             truncated: false,
+            first_row: None,
         };
     };
     let lines: Vec<_> = text.split_inclusive('\n').collect();
     crate::pane::TerminalReadSnapshot {
         text: lines[lines.len().saturating_sub(limit)..].concat(),
         truncated: lines.len() > limit,
+        first_row: None,
     }
+}
+
+/// The cursor for a `pane.read` reply. `first_row` is the snapshot's row
+/// origin (see `TerminalReadSnapshot::first_row`); with it the cursor's
+/// screen row (scrollback rows + its viewport row) becomes an index into the
+/// snapshot's lines, so a client can place its own cursor on the right line.
+pub(super) fn read_cursor(
+    terminal: &crate::terminal::TerminalRuntime,
+    first_row: Option<usize>,
+) -> Option<crate::api::schema::PaneReadCursor> {
+    let whole = ratatui::layout::Rect::new(0, 0, u16::MAX, u16::MAX);
+    let cursor = terminal.cursor_state(whole, true)?;
+    let scrollback_rows = terminal
+        .scroll_metrics()
+        .map(|metrics| metrics.max_offset_from_bottom)
+        .unwrap_or(0);
+    Some(crate::api::schema::PaneReadCursor {
+        line: snapshot_cursor_line(first_row, scrollback_rows, cursor.y),
+        col: cursor.x,
+        visible: cursor.visible,
+        shape: cursor.shape,
+    })
+}
+
+/// Index of the cursor's row within a snapshot whose first line is screen row
+/// `first_row`; `None` when the origin is unknown or the cursor lies above it.
+pub(crate) fn snapshot_cursor_line(
+    first_row: Option<usize>,
+    scrollback_rows: usize,
+    cursor_viewport_row: u16,
+) -> Option<u64> {
+    let screen_row = scrollback_rows.saturating_add(usize::from(cursor_viewport_row));
+    screen_row.checked_sub(first_row?).map(|line| line as u64)
 }
 
 #[cfg(test)]
 mod read_snapshot_tests {
-    use super::limit_snapshot_lines;
+    use super::{limit_snapshot_lines, snapshot_cursor_line};
+
+    #[test]
+    fn cursor_line_is_relative_to_the_snapshot_origin() {
+        // 100 scrollback rows, viewport cursor on row 5 → screen row 105;
+        // a snapshot starting at row 90 puts it on line 15.
+        assert_eq!(snapshot_cursor_line(Some(90), 100, 5), Some(15));
+        // Snapshot starts at the very top: line == screen row.
+        assert_eq!(snapshot_cursor_line(Some(0), 0, 3), Some(3));
+        // Unknown origin (visible/text reads, Windows fallback) → no line.
+        assert_eq!(snapshot_cursor_line(None, 100, 5), None);
+        // Cursor above the snapshot window cannot be addressed.
+        assert_eq!(snapshot_cursor_line(Some(200), 100, 5), None);
+    }
 
     #[test]
     fn line_limit_preserves_endings_and_reports_omitted_lines() {

@@ -1533,6 +1533,7 @@ impl App {
             params.format,
             params.lines,
         );
+        let cursor = crate::app::api_helpers::read_cursor(pane, snapshot.first_row);
 
         encode_success(
             id,
@@ -1546,6 +1547,8 @@ impl App {
                     text: snapshot.text,
                     revision: pane.content_seq(),
                     truncated: snapshot.truncated,
+                    cursor,
+                    alternate_screen: pane.alternate_screen_active(),
                 },
             },
         )

@@ -6411,8 +6411,60 @@
           ],
           "type": "object"
         },
+        "PaneReadCursor": {
+          "description": "Terminal cursor reported with a `pane.read` snapshot.",
+          "properties": {
+            "col": {
+              "description": "Zero-based column within that row.",
+              "format": "uint16",
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "line": {
+              "description": "Zero-based index of the cursor's row among the lines of `text`, or\n`null` when the snapshot's row origin is unknown (non-`recent` sources,\nWindows fallback text). It may equal or exceed the number of lines in\n`text` when the cursor sits on blank rows below the last content.",
+              "format": "uint64",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "shape": {
+              "description": "DECSCUSR parameter (0–6); 0 is the terminal default.",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "visible": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "col",
+            "visible",
+            "shape"
+          ],
+          "type": "object"
+        },
         "PaneReadResult": {
           "properties": {
+            "alternate_screen": {
+              "description": "The application has switched to the alternate screen (a full-screen\nprogram such as an editor or pager owns the viewport).",
+              "type": "boolean"
+            },
+            "cursor": {
+              "anyOf": [
+                {
+                  "$ref": "#/schemas/subscription_event/$defs/PaneReadCursor"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Where the terminal cursor is, when the runtime knows. Present for every\nsource; `line` is only set for `recent` reads, in the coordinates of `text`."
+            },
             "format": {
               "$ref": "#/schemas/subscription_event/$defs/ReadFormat"
             },
@@ -8354,8 +8406,60 @@
           ],
           "type": "object"
         },
+        "PaneReadCursor": {
+          "description": "Terminal cursor reported with a `pane.read` snapshot.",
+          "properties": {
+            "col": {
+              "description": "Zero-based column within that row.",
+              "format": "uint16",
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "line": {
+              "description": "Zero-based index of the cursor's row among the lines of `text`, or\n`null` when the snapshot's row origin is unknown (non-`recent` sources,\nWindows fallback text). It may equal or exceed the number of lines in\n`text` when the cursor sits on blank rows below the last content.",
+              "format": "uint64",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "shape": {
+              "description": "DECSCUSR parameter (0–6); 0 is the terminal default.",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "visible": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "col",
+            "visible",
+            "shape"
+          ],
+          "type": "object"
+        },
         "PaneReadResult": {
           "properties": {
+            "alternate_screen": {
+              "description": "The application has switched to the alternate screen (a full-screen\nprogram such as an editor or pager owns the viewport).",
+              "type": "boolean"
+            },
+            "cursor": {
+              "anyOf": [
+                {
+                  "$ref": "#/schemas/success_response/$defs/PaneReadCursor"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Where the terminal cursor is, when the runtime knows. Present for every\nsource; `line` is only set for `recent` reads, in the coordinates of `text`."
+            },
             "format": {
               "$ref": "#/schemas/success_response/$defs/ReadFormat"
             },

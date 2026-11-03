@@ -136,6 +136,7 @@ fn wrapped_text(core: &GhosttyPaneCore, lines: usize) -> TerminalReadSnapshot {
     TerminalReadSnapshot {
         text: cache_text(&rows, lines),
         truncated: rows.len() > lines,
+        first_row: None,
     }
 }
 
@@ -150,6 +151,7 @@ fn unwrapped_text(core: &GhosttyPaneCore, lines: usize) -> TerminalReadSnapshot 
     TerminalReadSnapshot {
         text: cache_text(&rows, rows.len()),
         truncated: rendered_rows.len() > lines,
+        first_row: None,
     }
 }
 
@@ -416,8 +418,13 @@ mod tests {
             pane.resize(rows, cols, 8, 16);
         }
         let mut core = pane.core.lock().unwrap();
-        let fallback =
-            super::super::finish_recent_snapshot(&mut core, String::new(), CACHE_LINES, false);
+        let fallback = super::super::finish_recent_snapshot(
+            &mut core,
+            String::new(),
+            CACHE_LINES,
+            false,
+            None,
+        );
         for row in [
             "net-zero-repaint",
             "batch-0000",

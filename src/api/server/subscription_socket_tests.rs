@@ -249,6 +249,8 @@ fn reply_to_probe(request: ApiRequestMessage) {
                 text: String::new(),
                 revision: 0,
                 truncated: false,
+                cursor: None,
+                alternate_screen: false,
             },
         },
         ref other => panic!("unexpected subscription probe: {other:?}"),

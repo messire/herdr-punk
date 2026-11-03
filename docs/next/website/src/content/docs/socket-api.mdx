@@ -828,6 +828,11 @@ Pane event subscriptions include `pane.created`, `pane.updated`, `pane.closed`, 
 per pane per 100 ms, and carries the pane's content `revision`; the same counter
 is returned by `pane.read`, so a client can skip a read whose revision it has
 already rendered.
+`pane.read` also reports the terminal `cursor` (`col`, `visible`, `shape`, and
+for `recent` reads `line`: the cursor's row as an index into the returned
+`text`, absent when the snapshot's origin is unknown) and `alternate_screen`
+(`true` while a full-screen program owns the viewport), so a client rendering
+the snapshot can place its own cursor instead of guessing.
 `pane.focused` also reports manual pane selection changes from any client attached
 to this server. It does not move other clients' views, and its payload does not
 identify the client. Selecting an already-selected pane does not emit it again.

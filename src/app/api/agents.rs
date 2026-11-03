@@ -304,6 +304,8 @@ impl App {
                     text: snapshot.text,
                     revision: 0,
                     truncated: snapshot.truncated,
+                    cursor: None,
+                    alternate_screen: false,
                 },
             },
         )

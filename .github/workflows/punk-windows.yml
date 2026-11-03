@@ -77,6 +77,7 @@ jobs:
             app::output_events \
             config::keybinds::tests::parse_navigation_keys \
             api::subscriptions::tests::pane_output_changed \
+            app::api_helpers::read_snapshot_tests \
             api::schema 2>&1 | tee -a build.log
 
       - name: Surface compiler errors as annotations

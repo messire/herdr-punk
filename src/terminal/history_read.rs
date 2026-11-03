@@ -92,7 +92,11 @@ pub(crate) fn snapshot_text(
     } else {
         wrapped_text(rows)
     };
-    TerminalReadSnapshot { text, truncated }
+    TerminalReadSnapshot {
+        text,
+        truncated,
+        first_row: None,
+    }
 }
 
 fn upward_alignment(previous: &[String], next: &[String]) -> Option<(usize, usize)> {
@@ -532,6 +536,7 @@ mod tests {
             TerminalReadSnapshot {
                 text: "hello\nworld\n".into(),
                 truncated: true,
+                first_row: None,
             }
         );
         assert_eq!(
@@ -539,6 +544,7 @@ mod tests {
             TerminalReadSnapshot {
                 text: "helloworld\n".into(),
                 truncated: true,
+                first_row: None,
             }
         );
     }

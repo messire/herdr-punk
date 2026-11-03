@@ -176,6 +176,9 @@ pub(crate) struct ProcessBytesResult {
 pub(crate) struct TerminalReadSnapshot {
     pub text: String,
     pub truncated: bool,
+    /// Absolute screen row (scrollback + viewport) of the first line of `text`,
+    /// when the snapshot was cut from rendered rows (`recent` ANSI reads).
+    pub first_row: Option<usize>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -2863,7 +2866,7 @@ fn finish_detection_text(core: &mut GhosttyPaneCore, text: String, lines: usize)
     // Windows fallback reads may refresh deferred history without a content revision.
     let reusable = !cfg!(windows) || !text.trim().is_empty();
     (
-        finish_recent_snapshot(core, text, lines, false).text,
+        finish_recent_snapshot(core, text, lines, false, None).text,
         reusable,
     )
 }
@@ -2936,7 +2939,7 @@ fn ghostty_recent_text_snapshot(
     lines: usize,
 ) -> Result<TerminalReadSnapshot, crate::ghostty::Error> {
     let text = ghostty_recent_text_for_terminal(&core.terminal, lines)?;
-    Ok(finish_recent_snapshot(core, text, lines, false))
+    Ok(finish_recent_snapshot(core, text, lines, false, None))
 }
 
 fn ghostty_recent_text_unwrapped_snapshot(
@@ -2944,7 +2947,7 @@ fn ghostty_recent_text_unwrapped_snapshot(
     lines: usize,
 ) -> Result<TerminalReadSnapshot, crate::ghostty::Error> {
     let text = ghostty_recent_text_unwrapped_for_terminal(&core.terminal, lines)?;
-    Ok(finish_recent_snapshot(core, text, lines, true))
+    Ok(finish_recent_snapshot(core, text, lines, true, None))
 }
 
 fn ghostty_recent_ansi(
@@ -2960,8 +2963,9 @@ fn ghostty_recent_ansi_snapshot(
     lines: usize,
     unwrap: bool,
 ) -> Result<TerminalReadSnapshot, crate::ghostty::Error> {
+    let first_row = ghostty_recent_read_range(&core.terminal, lines)?.map(|(start, _, _)| start);
     let text = ghostty_recent_ansi_for_terminal(&core.terminal, lines, unwrap)?;
-    Ok(finish_recent_snapshot(core, text, lines, unwrap))
+    Ok(finish_recent_snapshot(core, text, lines, unwrap, first_row))
 }
 
 fn finish_recent_snapshot(
@@ -2969,6 +2973,7 @@ fn finish_recent_snapshot(
     text: String,
     lines: usize,
     unwrap: bool,
+    first_row: Option<usize>,
 ) -> TerminalReadSnapshot {
     #[cfg(not(windows))]
     let _ = unwrap;
@@ -2988,6 +2993,7 @@ fn finish_recent_snapshot(
             .terminal
             .total_rows()
             .is_ok_and(|total_rows| total_rows > lines),
+        first_row,
     }
 }
 
