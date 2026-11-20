@@ -79,6 +79,11 @@ pub const DEFAULT_MOBILE_WIDTH_THRESHOLD: u16 = 64;
 pub const DEFAULT_HEADLESS_COLS: u16 = 120;
 pub const DEFAULT_HEADLESS_ROWS: u16 = 40;
 
+#[allow(dead_code)] // only the deck-server binary calls it
+pub(crate) fn set_app_dir_name(name: &'static str) {
+    io::set_app_dir_name(name);
+}
+
 #[cfg(test)]
 pub(crate) fn app_dir_name() -> &'static str {
     io::app_dir_name()

@@ -1,0 +1,6 @@
+Herdr
+Copyright the Herdr authors. Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+The `deck-server` binary (src/deck_server.rs, src/deck_server/) is a server-only build
+derived from Herdr (Apache-2.0) for Netrunner Deck: it compiles Herdr's headless server
+and JSON API without the TUI client, the command-line client and the self-updater.

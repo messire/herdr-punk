@@ -19,7 +19,18 @@ const KNOWN_TOP_LEVEL_CONFIG_KEYS: &[&str] = &[
     "worktrees",
 ];
 
+/// Set once at startup by a binary that must not share Herdr's config,
+/// state, session and socket directories (the `deck-server` slice).
+static APP_DIR_NAME_OVERRIDE: std::sync::OnceLock<&'static str> = std::sync::OnceLock::new();
+
+pub fn set_app_dir_name(name: &'static str) {
+    let _ = APP_DIR_NAME_OVERRIDE.set(name);
+}
+
 pub fn app_dir_name() -> &'static str {
+    if let Some(name) = APP_DIR_NAME_OVERRIDE.get() {
+        return name;
+    }
     if cfg!(debug_assertions) {
         "herdr-dev"
     } else {

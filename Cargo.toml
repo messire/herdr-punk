@@ -17,8 +17,23 @@ include = [
     "distribution/install.ps1",
     "README.md",
     "LICENSE",
+    "NOTICE",
     "Cargo.toml",
 ]
+
+[[bin]]
+name = "herdr"
+path = "src/main.rs"
+
+# Server-only slice for Netrunner Deck: the headless server and JSON API
+# without the TUI client, with its own app dir (see src/deck_server.rs).
+[[bin]]
+name = "deck-server"
+path = "src/deck_server.rs"
+# The shared modules' tests run under `herdr`; some reach the TUI client,
+# which this binary stubs out.
+test = false
+bench = false
 
 [workspace]
 members = ["crates/ghostty-vt"]
