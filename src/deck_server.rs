@@ -121,6 +121,13 @@ fn action_of(rest: &[String]) -> Result<Action, String> {
 
 /// One JSON request to the running server's API; `None` when nothing answers.
 fn request(method: &str) -> Option<String> {
+    send_line(&format!(
+        r#"{{"id":"deck-server","method":"{method}","params":{{}}}}"#
+    ))
+}
+
+/// One request line to the API socket; the reply line, or `None`.
+fn send_line(line: &str) -> Option<String> {
     use std::io::{BufRead, BufReader, Write};
     let path = api::socket_path();
     #[cfg(windows)]
@@ -132,11 +139,7 @@ fn request(method: &str) -> Option<String> {
     #[cfg(not(windows))]
     let stream = std::os::unix::net::UnixStream::connect(&path).ok()?;
     let mut writer = stream.try_clone().ok()?;
-    writeln!(
-        writer,
-        r#"{{"id":"deck-server","method":"{method}","params":{{}}}}"#
-    )
-    .ok()?;
+    writeln!(writer, "{line}").ok()?;
     writer.flush().ok()?;
     let mut line = String::new();
     BufReader::new(stream).read_line(&mut line).ok()?;
@@ -185,7 +188,46 @@ fn session_arg(args: &[String]) -> Option<&str> {
         .map(|w| w[1].as_str())
 }
 
+/// Agent hooks in deck-server panes run `$HERDR_BIN_PATH pane report-agent-session ...`
+/// (and the other report leaves), with `HERDR_SOCKET_PATH` set to this server.
+/// Forward those to the API like `herdr` does; `None` = not a hook call.
+fn hook_call(args: &[String]) -> Option<i32> {
+    if args.get(1).map(String::as_str) != Some("pane") {
+        return None;
+    }
+    let leaf = args.get(2)?;
+    let request = match cli::pane::hook_request(leaf, args.get(3..).unwrap_or_default())? {
+        Ok(request) => request,
+        Err(err) => {
+            eprintln!("deck-server pane {leaf}: {err}");
+            return Some(2);
+        }
+    };
+    let Ok(line) = serde_json::to_string(&request) else {
+        return Some(1);
+    };
+    match send_line(&line) {
+        Some(reply) if reply.contains("\"result\"") => Some(0),
+        Some(reply) => {
+            eprintln!("deck-server pane {leaf}: {}", reply.trim());
+            Some(1)
+        }
+        None => {
+            eprintln!(
+                "deck-server pane {leaf}: server not reachable at {}",
+                api::socket_path().display()
+            );
+            Some(1)
+        }
+    }
+}
+
 fn main() -> io::Result<()> {
+    // Before the env is cleaned: a hook call targets the server in HERDR_SOCKET_PATH.
+    let raw: Vec<String> = std::env::args().collect();
+    if let Some(code) = hook_call(&raw) {
+        std::process::exit(code);
+    }
     for var in INHERITED_HERDR_VARS {
         std::env::remove_var(var);
     }

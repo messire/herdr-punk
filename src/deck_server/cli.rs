@@ -25,6 +25,27 @@ pub(crate) mod pane {
     #[path = "../../cli/pane/parse.rs"]
     mod parse;
     use parse::*;
+
+    /// `pane <leaf> ARGS` as the API request Herdr's CLI would send, for the
+    /// leaves agent hooks call through `$HERDR_BIN_PATH` (the hooks run
+    /// `deck-server pane report-agent-session ...` inside deck-server panes).
+    /// `None` for any other command.
+    pub(crate) fn hook_request(
+        leaf: &str,
+        args: &[String],
+    ) -> Option<Result<crate::api::schema::Request, String>> {
+        const HOOK_LEAVES: &[&str] = &[
+            "report-agent",
+            "report-agent-session",
+            "release-agent",
+            "report-metadata",
+        ];
+        if !HOOK_LEAVES.contains(&leaf) {
+            return None;
+        }
+        let found = bindings::LEAVES.iter().find(|l| l.name == leaf)?;
+        Some(found.request(args).map_err(|err| format!("{err:?}")))
+    }
 }
 
 pub(crate) mod plugin {
