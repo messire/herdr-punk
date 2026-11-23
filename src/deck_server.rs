@@ -6,7 +6,14 @@
 //! config/state/session/socket directories (`deck-server`, `deck-server-dev`
 //! for debug builds) so it can run next to a Herdr install.
 //!
-//! Usage: `deck-server [--session NAME]`.
+//! Usage (like Herdr, the server runs in the background with no window):
+//!
+//! * `deck-server [--session NAME]` starts the server detached if it is not
+//!   running and returns once its API answers;
+//! * `deck-server stop [--session NAME]` stops it (`server.stop`);
+//! * `deck-server status [--session NAME]` says whether it runs;
+//! * `deck-server --foreground [--session NAME]` runs it in this console
+//!   (debugging; this is also what the detached process runs).
 
 // Modules shared with `herdr` carry code (and re-exports) only its TUI/CLI uses.
 #![allow(dead_code, unused_imports)]
@@ -85,6 +92,99 @@ const INHERITED_HERDR_VARS: &[&str] = &[
     HERDR_ENV_VAR,
 ];
 
+const USAGE: &str = "usage: deck-server [start|stop|status] [--session NAME] [--foreground]";
+
+/// What the command line asks for, after `--session` was taken out.
+#[derive(Debug, PartialEq, Eq)]
+enum Action {
+    Start,
+    Foreground,
+    Stop,
+    Status,
+}
+
+fn action_of(rest: &[String]) -> Result<Action, String> {
+    let foreground = rest.iter().any(|a| a == "--foreground");
+    let words: Vec<&str> = rest
+        .iter()
+        .map(String::as_str)
+        .filter(|a| *a != "--foreground")
+        .collect();
+    match (words.as_slice(), foreground) {
+        ([] | ["start"], false) => Ok(Action::Start),
+        ([] | ["start"], true) => Ok(Action::Foreground),
+        (["stop"], false) => Ok(Action::Stop),
+        (["status"], false) => Ok(Action::Status),
+        _ => Err(USAGE.to_string()),
+    }
+}
+
+/// One JSON request to the running server's API; `None` when nothing answers.
+fn request(method: &str) -> Option<String> {
+    use std::io::{BufRead, BufReader, Write};
+    let path = api::socket_path();
+    #[cfg(windows)]
+    let stream = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(format!(r"\\.\pipe\{}", path.display()))
+        .ok()?;
+    #[cfg(not(windows))]
+    let stream = std::os::unix::net::UnixStream::connect(&path).ok()?;
+    let mut writer = stream.try_clone().ok()?;
+    writeln!(
+        writer,
+        r#"{{"id":"deck-server","method":"{method}","params":{{}}}}"#
+    )
+    .ok()?;
+    writer.flush().ok()?;
+    let mut line = String::new();
+    BufReader::new(stream).read_line(&mut line).ok()?;
+    Some(line)
+}
+
+fn running() -> bool {
+    request("ping").is_some_and(|reply| reply.contains("\"result\""))
+}
+
+/// Start `deck-server --foreground` detached (no console, outlives this
+/// process), the way `herdr` starts its server, and wait until it answers.
+fn start_detached(session: Option<&str>) -> io::Result<()> {
+    let exe = std::env::current_exe()?;
+    let mut command = std::process::Command::new(exe);
+    command
+        .arg("--foreground")
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null());
+    if let Some(name) = session {
+        command.args(["--session", name]);
+    }
+    platform::detach_server_daemon_command(&mut command);
+    let pid = platform::launch_server_daemon_command(&mut command)?;
+    for _ in 0..100 {
+        if running() {
+            println!(
+                "deck-server started (pid {pid}) at {}",
+                api::socket_path().display()
+            );
+            return Ok(());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    Err(io::Error::other(format!(
+        "deck-server (pid {pid}) did not answer at {} within 10 s",
+        api::socket_path().display()
+    )))
+}
+
+/// The `--session` value, if given (for passing it on to the detached server).
+fn session_arg(args: &[String]) -> Option<&str> {
+    args.windows(2)
+        .find(|w| w[0] == "--session")
+        .map(|w| w[1].as_str())
+}
+
 fn main() -> io::Result<()> {
     for var in INHERITED_HERDR_VARS {
         std::env::remove_var(var);
@@ -97,7 +197,7 @@ fn main() -> io::Result<()> {
         .any(|a| a == "--help" || a == "-h" || a == "--version" || a == "-V")
     {
         println!(
-            "deck-server {} (herdr protocol {})\nusage: deck-server [--session NAME]\napi socket: {}",
+            "deck-server {} (herdr protocol {})\n{USAGE}\napi socket: {}",
             env!("CARGO_PKG_VERSION"),
             protocol::PROTOCOL_VERSION,
             api::socket_path().display()
@@ -105,9 +205,51 @@ fn main() -> io::Result<()> {
         return Ok(());
     }
     // `--session NAME` selects `sessions/NAME` under the app dir, as in Herdr.
-    if let Err(err) = session::configure_from_args(&args) {
-        eprintln!("error: {err}");
-        std::process::exit(2);
+    let rest = match session::configure_from_args(&args) {
+        Ok(cleaned) => cleaned,
+        Err(err) => {
+            eprintln!("error: {err}");
+            std::process::exit(2);
+        }
+    };
+    let action = match action_of(rest.get(1..).unwrap_or_default()) {
+        Ok(action) => action,
+        Err(usage) => {
+            eprintln!("{usage}");
+            std::process::exit(2);
+        }
+    };
+    let socket = api::socket_path();
+    match action {
+        Action::Foreground => server::headless::run_server(),
+        Action::Start if running() => {
+            println!("deck-server is already running at {}", socket.display());
+            Ok(())
+        }
+        Action::Start => start_detached(session_arg(&args)),
+        Action::Status => {
+            if running() {
+                println!("running at {}", socket.display());
+            } else {
+                println!("not running ({})", socket.display());
+                std::process::exit(1);
+            }
+            Ok(())
+        }
+        Action::Stop => {
+            if !running() {
+                println!("deck-server is not running ({})", socket.display());
+                return Ok(());
+            }
+            let _ = request("server.stop");
+            for _ in 0..50 {
+                if !running() {
+                    println!("deck-server stopped");
+                    return Ok(());
+                }
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+            Err(io::Error::other("deck-server did not stop within 5 s"))
+        }
     }
-    server::headless::run_server()
 }
